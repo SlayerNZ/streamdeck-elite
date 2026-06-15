@@ -528,6 +528,11 @@ namespace Elite
             // SystemDestination is always the last row, independent of WaypointTarget
             snapshot.SystemDestination = Waypoints[WaypointMax].SystemName;
 
+            // Phase A: lazily fetch coordinates for the fixed endpoints (origin + destination) so the
+            // off-route distance/percent estimates have them ready. Cheap no-op once resolved.
+            EnsureCoords(Waypoints[0].SystemName);
+            EnsureCoords(Waypoints[WaypointMax].SystemName);
+
             snapshot.RouteStatus = ComputeRouteStatus(state.SystemCurrent);
 
             // WaypointCurrent — index of SystemCurrent in the route (last occurrence, -1 if off-route)
@@ -571,6 +576,7 @@ namespace Elite
             // Triggered here so Next/Previous/auto-advance (button + dial) all enrich the new target.
             snapshot.ScoopableLs = waypoint.FuelStarLs ?? double.NaN;
             EnsureEnriched(waypoint.SystemName);
+            EnsureCoords(waypoint.SystemName);
             snapshot.WaypointTarget = Math.Max(0, state.WaypointTarget);
 
             // Use WaypointCurrent for position metrics; fall back to WaypointTarget-1 when off-route
@@ -1017,6 +1023,97 @@ namespace Elite
             var c = char.ToUpperInvariant(subType[0]);
             if ("OBAFGKM".IndexOf(c) < 0) return false;
             return subType.Length == 1 || subType[1] == ' ' || subType[1] == '(';
+        }
+
+        // ---- Phase A: EDSM coordinate enrichment -----------------------------
+
+        private static readonly HashSet<string> coordsInFlight =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Fires a one-time EDSM coordinate lookup for a system if any waypoint of that name still
+        // lacks an attempt. Must be called under SyncRoot. Cheap no-op once attempted.
+        private static void EnsureCoords(string systemName)
+        {
+            if (string.IsNullOrWhiteSpace(systemName)) return;
+            if (WaypointCoordsKnown(systemName)) return;
+            if (!coordsInFlight.Add(systemName)) return;
+            _ = Task.Run(() => FetchCoordsFromEdsmAsync(systemName));
+        }
+
+        // True when every matching waypoint has had coords attempted (a value or the NaN
+        // "looked up, unknown" sentinel), or the system isn't in the route.
+        private static bool WaypointCoordsKnown(string systemName)
+        {
+            foreach (var wp in Waypoints)
+            {
+                if (string.Equals(wp.SystemName, systemName, StringComparison.OrdinalIgnoreCase)
+                    && wp.X == null)
+                    return false;
+            }
+            return true;
+        }
+
+        private static async Task FetchCoordsFromEdsmAsync(string systemName)
+        {
+            try
+            {
+                var url = "https://www.edsm.net/api-v1/system?showCoordinates=1&systemName="
+                          + Uri.EscapeDataString(systemName);
+                var resp = await Http.GetAsync(url).ConfigureAwait(false);
+                if (!resp.IsSuccessStatusCode) return; // leave unattempted so a later trigger retries
+
+                var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+                // NaN sentinel = looked up but no coords (EDSM returns [] / {} for unknown systems).
+                double x = double.NaN, y = double.NaN, z = double.NaN;
+                if (!string.IsNullOrWhiteSpace(body) && body.TrimStart().StartsWith('{'))
+                {
+                    var parsed = JsonConvert.DeserializeObject<EdsmSystemResponse>(body);
+                    if (parsed?.Coords != null)
+                    {
+                        x = parsed.Coords.X;
+                        y = parsed.Coords.Y;
+                        z = parsed.Coords.Z;
+                    }
+                }
+
+                lock (SyncRoot)
+                {
+                    var changed = false;
+                    foreach (var wp in Waypoints)
+                    {
+                        if (string.Equals(wp.SystemName, systemName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            wp.X = x;
+                            wp.Y = y;
+                            wp.Z = z;
+                            changed = true;
+                        }
+                    }
+                    if (changed) SaveWaypoints();
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogMessage(TracingLevel.ERROR, "NeutronPlotRoute FetchCoordsFromEdsmAsync " + ex);
+            }
+            finally
+            {
+                lock (SyncRoot) { coordsInFlight.Remove(systemName); }
+            }
+        }
+
+        private class EdsmSystemResponse
+        {
+            [JsonProperty("name")] public string Name { get; set; }
+            [JsonProperty("coords")] public EdsmCoords Coords { get; set; }
+        }
+
+        private class EdsmCoords
+        {
+            [JsonProperty("x")] public double X { get; set; }
+            [JsonProperty("y")] public double Y { get; set; }
+            [JsonProperty("z")] public double Z { get; set; }
         }
 
         private class EdsmBodiesResponse
