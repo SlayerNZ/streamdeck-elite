@@ -30,6 +30,13 @@ namespace Elite
         public bool MustInject { get; set; }
         public double FuelInTank { get; set; }
         public double FuelUsed { get; set; }
+
+        // Off-route EDSM enrichment — persisted with the route, wiped on replot.
+        // Nullable so "not looked up yet" is distinct from a real 0/absent value.
+        public double? X { get; set; }
+        public double? Y { get; set; }
+        public double? Z { get; set; }
+        public double? FuelStarLs { get; set; }   // nearest scoopable star distance (Ls); -1 = none
     }
 
     public class NeutronPlotSnapshot
@@ -68,14 +75,13 @@ namespace Elite
     public static class NeutronPlotRoute
     {
         private const string StateFileName = "neutronPlotState.json";
-        private const string SpanshRouteFileName = "neutronSpanshRoute.json";
-        private const string FuelCacheFileName = "neutronFuelStars.json";
+        // Single serialized waypoint table for BOTH route types (CSV + Spansh), with EDSM
+        // enrichment (coords/fuel) baked in. Replaced on each replot; wiped on clear.
+        private const string WaypointsFileName = "neutronRouteWaypoints.json";
 
-        // Phase 2 — EDSM fuel-star enrichment. Name-keyed cache (case-insensitive): system name →
-        // nearest scoopable star distance in Ls (-1 = none found). Persisted across sessions so each
-        // system is queried at most once, regardless of CSV vs Spansh route source.
-        private static readonly Dictionary<string, double> fuelCache =
-            new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        // EDSM enrichment is written straight onto the waypoints (FuelStarLs / X,Y,Z) and persists
+        // with the serialized route, so there is no separate cross-route cache. enrichInFlight just
+        // dedupes concurrent lookups for the same system name while a fetch is running.
         private static readonly HashSet<string> enrichInFlight =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private static readonly object SyncRoot = new object();
@@ -109,10 +115,9 @@ namespace Elite
             lock (SyncRoot)
             {
                 LoadState();
-                LoadFuelCache();
                 if (state.IsSpanshRoute)
                 {
-                    LoadSpanshRouteFromDisk();
+                    if (!LoadWaypointsFromDisk()) state.IsSpanshRoute = false;
                 }
                 else
                 {
@@ -145,7 +150,7 @@ namespace Elite
                 // Choosing a CSV cancels any in-progress Spansh fetch and replaces the active route.
                 CancelSpanshPlot();
                 state.IsSpanshRoute = false;
-                DeleteSpanshRouteFile();
+                DeleteWaypointsFile();
 
                 state.CsvPath = csvPath ?? string.Empty;
                 state.WaypointTarget = 0;
@@ -164,7 +169,7 @@ namespace Elite
                 // Clear File cancels any in-progress Spansh fetch and clears the active route.
                 CancelSpanshPlot();
                 state.IsSpanshRoute = false;
-                DeleteSpanshRouteFile();
+                DeleteWaypointsFile();
 
                 state.CsvPath = string.Empty;
                 state.CsvLastWriteTimeUtc = default;
@@ -285,23 +290,33 @@ namespace Elite
 
         private static void ReloadRoute(bool resetIndexIfChanged)
         {
-            // Spansh routes live in their own JSON file, not a CSV on disk.
+            // Spansh routes carry no CSV on disk — just load the serialized waypoint table.
             if (state.IsSpanshRoute)
             {
-                LoadSpanshRouteFromDisk();
+                if (!LoadWaypointsFromDisk()) state.IsSpanshRoute = false;
                 return;
             }
 
-            Waypoints.Clear();
-
             if (string.IsNullOrWhiteSpace(state.CsvPath) || !File.Exists(state.CsvPath))
             {
+                Waypoints.Clear();
                 return;
             }
 
             var fileInfo = new FileInfo(state.CsvPath);
             var fileChanged = fileInfo.LastWriteTimeUtc != state.CsvLastWriteTimeUtc ||
                               fileInfo.Length != state.CsvFileSizeBytes;
+
+            // Unchanged CSV: reuse the serialized table so EDSM enrichment (coords/fuel) survives
+            // restarts instead of being thrown away by a re-parse.
+            if (!fileChanged && LoadWaypointsFromDisk())
+            {
+                state.WaypointTarget = ClampIndex(state.WaypointTarget);
+                return;
+            }
+
+            // Changed (or no serialized table yet): re-parse the CSV from scratch.
+            Waypoints.Clear();
 
             var rows = ReadCsvRows(state.CsvPath);
 
@@ -339,6 +354,9 @@ namespace Elite
 
             state.CsvLastWriteTimeUtc = fileInfo.LastWriteTimeUtc;
             state.CsvFileSizeBytes = fileInfo.Length;
+
+            // Persist the freshly parsed table; EDSM enrichment fills coords/fuel in later and re-saves.
+            SaveWaypoints();
 
             if (fileChanged && resetIndexIfChanged)
             {
@@ -551,7 +569,7 @@ namespace Elite
 
             // Phase 2: surface the cached scoopable distance for the target and lazily enrich it.
             // Triggered here so Next/Previous/auto-advance (button + dial) all enrich the new target.
-            snapshot.ScoopableLs = fuelCache.TryGetValue(waypoint.SystemName, out var ls) ? ls : double.NaN;
+            snapshot.ScoopableLs = waypoint.FuelStarLs ?? double.NaN;
             EnsureEnriched(waypoint.SystemName);
             snapshot.WaypointTarget = Math.Max(0, state.WaypointTarget);
 
@@ -820,72 +838,68 @@ namespace Elite
                 if (!string.IsNullOrWhiteSpace(EliteData.StarSystem))
                     state.SystemCurrent = EliteData.StarSystem;
 
-                SaveSpanshRoute();
+                SaveWaypoints();
                 SaveState();
             }
         }
 
-        private static void LoadSpanshRouteFromDisk()
+        // Loads the serialized waypoint table (both route types) into Waypoints, preserving any baked-in
+        // EDSM enrichment. Pure: returns true on a non-empty load, false otherwise; leaves route-type
+        // flags to the caller. Clears Waypoints first so a failed load yields an empty route.
+        private static bool LoadWaypointsFromDisk()
         {
             Waypoints.Clear();
             try
             {
-                var path = GetSpanshRouteFilePath();
-                if (!File.Exists(path))
-                {
-                    state.IsSpanshRoute = false;
-                    return;
-                }
+                var path = GetWaypointsFilePath();
+                if (!File.Exists(path)) return false;
 
                 var wps = JsonConvert.DeserializeObject<List<NeutronPlotWaypoint>>(File.ReadAllText(path));
-                if (wps == null || wps.Count == 0)
-                {
-                    state.IsSpanshRoute = false;
-                    return;
-                }
+                if (wps == null || wps.Count == 0) return false;
 
                 Waypoints.AddRange(wps);
                 state.WaypointTarget = ClampIndex(state.WaypointTarget);
+                return true;
             }
             catch (Exception ex)
             {
-                Logger.Instance.LogMessage(TracingLevel.ERROR, "NeutronPlotRoute LoadSpanshRouteFromDisk " + ex);
+                Logger.Instance.LogMessage(TracingLevel.ERROR, "NeutronPlotRoute LoadWaypointsFromDisk " + ex);
                 Waypoints.Clear();
-                state.IsSpanshRoute = false;
+                return false;
             }
         }
 
-        private static void SaveSpanshRoute()
+        private static void SaveWaypoints()
         {
             try
             {
-                var path = GetSpanshRouteFilePath();
+                var path = GetWaypointsFilePath();
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
                 File.WriteAllText(path, JsonConvert.SerializeObject(Waypoints, Formatting.Indented));
             }
             catch (Exception ex)
             {
-                Logger.Instance.LogMessage(TracingLevel.ERROR, "NeutronPlotRoute SaveSpanshRoute " + ex);
+                Logger.Instance.LogMessage(TracingLevel.ERROR, "NeutronPlotRoute SaveWaypoints " + ex);
             }
         }
 
-        private static void DeleteSpanshRouteFile()
+        private static void DeleteWaypointsFile()
         {
             try
             {
-                var path = GetSpanshRouteFilePath();
+                var path = GetWaypointsFilePath();
                 if (File.Exists(path)) File.Delete(path);
             }
             catch (Exception ex)
             {
-                Logger.Instance.LogMessage(TracingLevel.ERROR, "NeutronPlotRoute DeleteSpanshRouteFile " + ex);
+                Logger.Instance.LogMessage(TracingLevel.ERROR, "NeutronPlotRoute DeleteWaypointsFile " + ex);
             }
         }
 
-        private static string GetSpanshRouteFilePath()
+        private static string GetWaypointsFilePath()
         {
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            return Path.Combine(appData, "EliteDangerousStreamDeck", SpanshRouteFileName);
+            return Path.Combine(appData, "EliteDangerousStreamDeck", WaypointsFileName);
         }
 
         private class SpanshSubmitResponse
@@ -922,14 +936,27 @@ namespace Elite
 
         // ---- Phase 2: EDSM fuel-star enrichment ------------------------------
 
-        // Fires a one-time background EDSM lookup for a system if not already cached or in flight.
-        // Must be called under SyncRoot. Cheap no-op once a system is known.
+        // Fires a one-time background EDSM lookup for a system's fuel star if any waypoint of that
+        // name still lacks it. Must be called under SyncRoot. Cheap no-op once resolved.
         private static void EnsureEnriched(string systemName)
         {
             if (string.IsNullOrWhiteSpace(systemName)) return;
-            if (fuelCache.ContainsKey(systemName)) return;
+            if (WaypointFuelKnown(systemName)) return;
             if (!enrichInFlight.Add(systemName)) return;
             _ = Task.Run(() => EnrichFromEdsmAsync(systemName));
+        }
+
+        // True when the named system's fuel-star distance is already resolved on every matching
+        // waypoint (or the system isn't in the route, so there is nothing to fetch).
+        private static bool WaypointFuelKnown(string systemName)
+        {
+            foreach (var wp in Waypoints)
+            {
+                if (string.Equals(wp.SystemName, systemName, StringComparison.OrdinalIgnoreCase)
+                    && wp.FuelStarLs == null)
+                    return false;
+            }
+            return true;
         }
 
         private static async Task EnrichFromEdsmAsync(string systemName)
@@ -958,8 +985,16 @@ namespace Elite
 
                 lock (SyncRoot)
                 {
-                    fuelCache[systemName] = nearest;
-                    SaveFuelCache();
+                    var changed = false;
+                    foreach (var wp in Waypoints)
+                    {
+                        if (string.Equals(wp.SystemName, systemName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            wp.FuelStarLs = nearest;
+                            changed = true;
+                        }
+                    }
+                    if (changed) SaveWaypoints();
                 }
             }
             catch (Exception ex)
@@ -982,47 +1017,6 @@ namespace Elite
             var c = char.ToUpperInvariant(subType[0]);
             if ("OBAFGKM".IndexOf(c) < 0) return false;
             return subType.Length == 1 || subType[1] == ' ' || subType[1] == '(';
-        }
-
-        private static void LoadFuelCache()
-        {
-            try
-            {
-                var path = GetFuelCacheFilePath();
-                if (!File.Exists(path)) return;
-
-                var loaded = JsonConvert.DeserializeObject<Dictionary<string, double>>(File.ReadAllText(path));
-                fuelCache.Clear();
-                if (loaded != null)
-                {
-                    foreach (var kvp in loaded)
-                        fuelCache[kvp.Key] = kvp.Value;
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.LogMessage(TracingLevel.ERROR, "NeutronPlotRoute LoadFuelCache " + ex);
-            }
-        }
-
-        private static void SaveFuelCache()
-        {
-            try
-            {
-                var path = GetFuelCacheFilePath();
-                Directory.CreateDirectory(Path.GetDirectoryName(path));
-                File.WriteAllText(path, JsonConvert.SerializeObject(fuelCache, Formatting.Indented));
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.LogMessage(TracingLevel.ERROR, "NeutronPlotRoute SaveFuelCache " + ex);
-            }
-        }
-
-        private static string GetFuelCacheFilePath()
-        {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            return Path.Combine(appData, "EliteDangerousStreamDeck", FuelCacheFileName);
         }
 
         private class EdsmBodiesResponse
