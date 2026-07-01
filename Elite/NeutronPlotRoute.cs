@@ -456,7 +456,10 @@ namespace Elite
             if (rows.Count <= 2) return false;
             foreach (var row in rows)
             {
-                if (row.Count != 7) return false;
+                // Require the columns we actually read (through index 6 = Neutron Star). Spansh has
+                // appended trailing columns over time (e.g. "Inject"); tolerate those and any future
+                // additions rather than pinning an exact count. Extra columns are ignored on parse.
+                if (row.Count < 7) return false;
                 if (!double.TryParse(row[1]?.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out _)) return false;
                 if (!double.TryParse(row[2]?.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out _)) return false;
             }
@@ -636,6 +639,15 @@ namespace Elite
                 isPlotting = true;
 
                 var form = BuildExactPlotterForm(from, to);
+
+                // Record the ship + fuel model actually being sent, so a stale/mismatched ship shows
+                // up plainly in the log (the plotted range is derived from these, not sent directly).
+                Logger.Instance.LogMessage(TracingLevel.INFO,
+                    $"Spansh plot ship='{EliteData.ShipType}' optimal_mass={form["optimal_mass"]} base_mass={form["base_mass"]} " +
+                    $"max_fuel_per_jump={form["max_fuel_per_jump"]} range_boost={form["range_boost"]} " +
+                    $"supercharge_multiplier={form["supercharge_multiplier"]} " +
+                    $"fuel_power={form["fuel_power"]} fuel_multiplier={form["fuel_multiplier"]} tank_size={form["tank_size"]}");
+
                 var ct = spanshCts.Token;
                 _ = Task.Run(() => FetchFromSpanshAsync(from, to, form, ct));
                 return true;
@@ -666,7 +678,7 @@ namespace Elite
                 ["reserve_size"] = "0",   // no extra main-tank buffer; plan with the full usable tank
                 ["max_fuel_per_jump"] = N(EliteData.FSDMaxFuelPerJump),
                 ["range_boost"] = N(EliteData.GuardianFSDBonus),
-                ["supercharge_multiplier"] = "4",
+                ["supercharge_multiplier"] = N(EliteData.NeutronBoostMultiplier),   // 6x Caspian, 4x others (from JetConeBoost)
                 ["injection_multiplier"] = "1.25",
                 ["max_time"] = "60",
                 ["cargo"] = N(EliteData.StatusData.Cargo),

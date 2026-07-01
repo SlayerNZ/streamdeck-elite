@@ -17,6 +17,10 @@ namespace Elite
         public static double LastJumpDistance = 0.0;
         public static double BaseJumpRange = 0.0;
         public static double BoostValue = 1.0;
+        // Neutron jet-cone supercharge factor for THIS ship (Spansh exact-plotter supercharge_multiplier).
+        // Almost all ships boost 4x; the Caspian Explorer's SCO Mk II drive boosts 6x. Seeded from a
+        // ship-type default on ship change, then refined to the exact game-reported value by JetConeBoost.
+        public static double NeutronBoostMultiplier = 4.0;
         public static double UnladenMass = 0.0;
         public static double FSDOptimalMass = 0.0;
         public static double FSDMaxFuelPerJump = 0.0;
@@ -25,6 +29,7 @@ namespace Elite
         public static double GuardianFSDBonus = 0.0;
         public static double FuelCapacityMain = 0.0;     // main fuel tank size (Loadout) — exact-plotter tank_size
         public static double FuelCapacityReserve = 0.0;  // reservoir size (Loadout) — exact-plotter internal_tank_size
+        public static string ShipType { get; set; } = string.Empty;  // internal ship name from Loadout (e.g. "explorer_nx")
         public static string FsdTargetName { get; set; }
         public static long FsdTargetAddress { get; set; }   // id64 of FSD-targeted system (FSDTarget event)
         public static long StarSystemAddress { get; set; }  // id64 of current system (Location/FSDJump/etc.)
@@ -284,6 +289,13 @@ namespace Elite
         }
 
 
+        // Known neutron jet-cone boost factor by ship, used as a cold-start default before the game
+        // reports the real value via JetConeBoost. Currently only the Caspian Explorer differs (6x).
+        private static double DefaultNeutronBoost(string ship)
+        {
+            return string.Equals(ship, "explorer_nx", StringComparison.OrdinalIgnoreCase) ? 6.0 : 4.0;
+        }
+
         private static void ParseFSDData(LoadoutEvent.LoadoutEventArgs loadout)
         {
             if (loadout.Modules == null) return;
@@ -303,7 +315,14 @@ namespace Elite
             }
 
             var fsd = loadout.Modules.FirstOrDefault(m => string.Equals(m.Slot, "FrameShiftDrive", StringComparison.OrdinalIgnoreCase));
-            if (fsd == null) return;
+            if (fsd == null)
+            {
+                // No FSD in this loadout — clear drive-derived fields so a previously flown ship's
+                // numbers can't linger and get sent to Spansh. StartSpanshPlot will then show NO SHIP.
+                EliteData.FSDOptimalMass = 0.0;
+                EliteData.FSDMaxFuelPerJump = 0.0;
+                return;
+            }
 
             // FSDOptimalMass from engineering modifier
             var optMass = fsd.Engineering?.Modifiers?.FirstOrDefault(m => m.Label == ModuleAttribute.FSDOptimalMass);
@@ -338,6 +357,11 @@ namespace Elite
             {
                 var fsdRange = EliteData.BaseJumpRange - EliteData.GuardianFSDBonus;
                 EliteData.FSDMaxFuelPerJump = BackCalculateMaxFuelPerJump(fsdRange, EliteData.FSDOptimalMass, EliteData.UnladenMass, EliteData.FSDLinearConstant, EliteData.FSDPowerConstant);
+            }
+            else
+            {
+                // Couldn't determine it from this ship — don't retain a prior ship's value.
+                EliteData.FSDMaxFuelPerJump = 0.0;
             }
         }
 
@@ -404,6 +428,14 @@ namespace Elite
 
                 case "Loadout":
                     var loadoutInfo = (LoadoutEvent.LoadoutEventArgs)e;
+                    var newShip = loadoutInfo.Ship ?? string.Empty;
+                    if (!string.Equals(newShip, EliteData.ShipType, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Ship changed — seed the neutron boost with this ship's known default until the
+                        // game reports the real factor via JetConeBoost. Avoids carrying a prior ship's 6x.
+                        EliteData.NeutronBoostMultiplier = DefaultNeutronBoost(newShip);
+                    }
+                    EliteData.ShipType = newShip;
                     if (loadoutInfo.MaxJumpRange > 0)
                         EliteData.BaseJumpRange = loadoutInfo.MaxJumpRange;
                     EliteData.UnladenMass = loadoutInfo.UnladenMass;
@@ -416,6 +448,9 @@ namespace Elite
                     var jetConeInfo = (JetConeBoostEvent.JetConeBoostEventArgs)e;
                     EliteData.BoostValue = jetConeInfo.BoostValue > 0 ? jetConeInfo.BoostValue : 1.0;
                     EliteData.IsFsdBoosted = true;
+                    // Authoritative per-ship neutron boost factor, straight from the game (6x Caspian, 4x others).
+                    if (jetConeInfo.BoostValue > 0)
+                        EliteData.NeutronBoostMultiplier = jetConeInfo.BoostValue;
                     break;
 
                 case "FSDJump":

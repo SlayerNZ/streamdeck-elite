@@ -574,6 +574,65 @@ namespace Elite
         /// line that confirms the system were silently skipped.
         /// Walks backwards through journal files, most recent first, up to 10 files.
         /// </summary>
+        /// <summary>
+        /// Ensures the ship's FSD/fuel model is populated on startup even when the current
+        /// session's journal has no Loadout event (e.g. a continued session). StartWatching only
+        /// replays the current session file; if that file has no Loadout, EliteData's drive fields
+        /// stay empty and Spansh auto-plots would be blocked (NO SHIP) — or, before the ParseFSDData
+        /// reset, plot with a previously flown ship's numbers.
+        /// Walks journal files newest->oldest, takes the most recent Loadout line, and feeds it
+        /// through the live event pipeline so the exact same handler applies it.
+        /// </summary>
+        private static void BackfillLoadout(string journalPath)
+        {
+            try
+            {
+                // Replay during StartWatching already loaded a ship — nothing to recover.
+                if (EliteData.FSDOptimalMass > 0)
+                {
+                    Logger.Instance.LogMessage(TracingLevel.INFO, $"BackfillLoadout: ship '{EliteData.ShipType}' already loaded, skipping");
+                    return;
+                }
+
+                var journalFiles = Directory.GetFiles(journalPath, "Journal.*.log")
+                    .OrderByDescending(f => f)
+                    .Take(10)
+                    .ToArray();
+
+                foreach (var file in journalFiles)
+                {
+                    string loadoutLine = null;
+                    try
+                    {
+                        // Last Loadout in the file = most recent for that session.
+                        foreach (var line in File.ReadLines(file))
+                        {
+                            if (line.IndexOf("\"event\":\"Loadout\"", StringComparison.OrdinalIgnoreCase) >= 0)
+                                loadoutLine = line;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Instance.LogMessage(TracingLevel.WARN, $"BackfillLoadout: error reading {file}: {ex.Message}");
+                        continue;
+                    }
+
+                    if (loadoutLine != null)
+                    {
+                        JournalWatcher.ParseText(loadoutLine);
+                        Logger.Instance.LogMessage(TracingLevel.INFO, $"BackfillLoadout: applied Loadout for ship '{EliteData.ShipType}' from {Path.GetFileName(file)}");
+                        return;
+                    }
+                }
+
+                Logger.Instance.LogMessage(TracingLevel.INFO, "BackfillLoadout: no Loadout found in recent journals");
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogMessage(TracingLevel.FATAL, $"BackfillLoadout: {ex}");
+            }
+        }
+
         private static void BackfillScanCache(string journalPath)
         {
             try
@@ -1069,6 +1128,10 @@ namespace Elite
                 JournalWatcher.AllEventHandler += EliteData.HandleEliteEvents;
 
                 JournalWatcher.StartWatching().Wait();
+
+                // Recover the current ship's fuel model if the current session logged no Loadout
+                // (StartWatching only replays the current session file).
+                BackfillLoadout(journalPath);
 
                 // Backfill scan cache from recent journal files for current star system
                 BackfillScanCache(journalPath);
