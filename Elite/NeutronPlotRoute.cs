@@ -85,6 +85,15 @@ namespace Elite
         // enrichment (coords/fuel) baked in. Replaced on each replot; wiped on clear.
         private const string WaypointsFileName = "neutronRouteWaypoints.json";
 
+        // Spansh galaxy-plotter CSV column headers we depend on. Columns are looked up by NAME (not a
+        // fixed position) so the parser tolerates Spansh reordering columns or inserting new ones —
+        // only these five need to exist; anything else (e.g. the trailing "Inject") is ignored.
+        private const string ColSystemName = "System Name";
+        private const string ColDistance = "Distance";
+        private const string ColDistanceRemaining = "Distance Remaining";
+        private const string ColRefuel = "Refuel";
+        private const string ColNeutron = "Neutron Star";
+
         // Conservative padding added to the ship's dry mass for Spansh plots, so planned hops keep a
         // little headroom instead of sitting at the ragged edge of max range. 0.5% shaves ~0.5% off
         // range — but on a neutron route the jet-cone boost amplifies that in absolute LY (~2.4 LY per
@@ -331,9 +340,10 @@ namespace Elite
             // Changed (or no serialized table yet): re-parse the CSV from scratch.
             Waypoints.Clear();
 
-            var rows = ReadCsvRows(state.CsvPath);
+            var rows = ReadCsvRows(state.CsvPath, out var header);
+            var cols = BuildColumnMap(header);
 
-            if (!CsvCheck(rows))
+            if (!CsvCheck(cols, rows))
             {
                 ClearRouteState();
                 SaveState();
@@ -349,11 +359,11 @@ namespace Elite
 
                 Waypoints.Add(new NeutronPlotWaypoint
                 {
-                    SystemName = GetColumn(row, 0),
-                    JumpDistance = ParseDouble(GetColumn(row, 1)),
-                    DistanceRemaining = ParseDouble(GetColumn(row, 2)),
-                    IsRefuel = IsYes(GetColumn(row, 5)),
-                    IsNeutron = IsYes(GetColumn(row, 6))
+                    SystemName = GetColumn(row, cols[ColSystemName]),
+                    JumpDistance = ParseDouble(GetColumn(row, cols[ColDistance])),
+                    DistanceRemaining = ParseDouble(GetColumn(row, cols[ColDistanceRemaining])),
+                    IsRefuel = IsYes(GetColumn(row, cols[ColRefuel])),
+                    IsNeutron = IsYes(GetColumn(row, cols[ColNeutron]))
                 });
             }
 
@@ -383,16 +393,17 @@ namespace Elite
             SaveState();
         }
 
-        private static List<List<string>> ReadCsvRows(string csvPath)
+        private static List<List<string>> ReadCsvRows(string csvPath, out List<string> header)
         {
+            header = null;
             var rows = new List<List<string>>();
-            var isHeader = true;
 
             foreach (var line in File.ReadLines(csvPath))
             {
-                if (isHeader)
+                if (header == null)
                 {
-                    isHeader = false;
+                    // First line is the header row (parsed for the name→index column map).
+                    header = string.IsNullOrWhiteSpace(line) ? new List<string>() : ParseCsvLine(line);
                     continue;
                 }
 
@@ -404,7 +415,22 @@ namespace Elite
                 rows.Add(ParseCsvLine(line));
             }
 
+            header = header ?? new List<string>();
             return rows;
+        }
+
+        // Maps trimmed, case-insensitive column names from the header row to their positions, so the
+        // rest of the parser reads by name and survives Spansh reordering/inserting columns.
+        private static Dictionary<string, int> BuildColumnMap(List<string> header)
+        {
+            var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < header.Count; i++)
+            {
+                var name = header[i]?.Trim();
+                if (!string.IsNullOrEmpty(name) && !map.ContainsKey(name))
+                    map[name] = i;
+            }
+            return map;
         }
 
         private static List<string> ParseCsvLine(string line)
@@ -464,17 +490,21 @@ namespace Elite
             return double.TryParse(value?.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var result) ? result : 0.0;
         }
 
-        private static bool CsvCheck(List<List<string>> rows)
+        private static bool CsvCheck(Dictionary<string, int> cols, List<List<string>> rows)
         {
             if (rows.Count <= 2) return false;
+
+            // Every column we read must be present by name. Reordering or extra columns (e.g. "Inject")
+            // are fine; a missing required column (or a non-Spansh file) fails validation.
+            foreach (var required in new[] { ColSystemName, ColDistance, ColDistanceRemaining, ColRefuel, ColNeutron })
+                if (!cols.ContainsKey(required)) return false;
+
+            var iDist = cols[ColDistance];
+            var iRem = cols[ColDistanceRemaining];
             foreach (var row in rows)
             {
-                // Require the columns we actually read (through index 6 = Neutron Star). Spansh has
-                // appended trailing columns over time (e.g. "Inject"); tolerate those and any future
-                // additions rather than pinning an exact count. Extra columns are ignored on parse.
-                if (row.Count < 7) return false;
-                if (!double.TryParse(row[1]?.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out _)) return false;
-                if (!double.TryParse(row[2]?.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out _)) return false;
+                if (!double.TryParse(GetColumn(row, iDist).Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out _)) return false;
+                if (!double.TryParse(GetColumn(row, iRem).Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out _)) return false;
             }
             return true;
         }
