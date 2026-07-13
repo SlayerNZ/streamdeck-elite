@@ -37,6 +37,11 @@ namespace Elite
         public static string StarClass { get; set; }
         public static string StarSystem { get; set; }
 
+        // Current-system galactic coordinates (LY), from the StarPos of Location/FSDJump/CarrierJump.
+        // Used for off-route straight-line estimates. HasStarPos guards against the unset (0,0,0) default.
+        public static double StarPosX, StarPosY, StarPosZ;
+        public static bool HasStarPos = false;
+
         public static List<RouteItem> RouteList = new List<RouteItem>();
 
 
@@ -289,11 +294,45 @@ namespace Elite
         }
 
 
+        // Records the player's current-system coordinates from a StarPos (decimal) so off-route
+        // straight-line estimates have a live origin point.
+        private static void SetStarPos(SystemPosition pos)
+        {
+            EliteData.StarPosX = (double)pos.X;
+            EliteData.StarPosY = (double)pos.Y;
+            EliteData.StarPosZ = (double)pos.Z;
+            EliteData.HasStarPos = true;
+        }
+
         // Known neutron jet-cone boost factor by ship, used as a cold-start default before the game
         // reports the real value via JetConeBoost. Currently only the Caspian Explorer differs (6x).
         private static double DefaultNeutronBoost(string ship)
         {
             return string.Equals(ship, "explorer_nx", StringComparison.OrdinalIgnoreCase) ? 6.0 : 4.0;
+        }
+
+        // Current laden jump range (LY) from the live FSD fuel model. boosted=true applies the active
+        // neutron boost (BoostValue) when IsFsdBoosted; boosted=false always returns the plain laden
+        // range, used for honest off-route "jumps to rejoin" estimates. Falls back to the Loadout's
+        // MaxJumpRange (or last jump) when the fuel model isn't available.
+        public static double GetJumpRange(bool boosted)
+        {
+            double range;
+            if (FSDOptimalMass > 0 && FSDMaxFuelPerJump > 0 && UnladenMass > 0)
+            {
+                // Conservative mass: round fuel up to the next tonne and assume a full reservoir, so the
+                // displayed range (and jumps-to-rejoin) leans slightly under rather than overstating reach.
+                var fuel = Math.Ceiling(StatusData.Fuel.FuelMain) + FuelCapacityReserve;
+                var totalMass = UnladenMass + fuel + StatusData.Cargo;
+                var fsdRange = FSDOptimalMass / totalMass
+                    * Math.Pow(FSDMaxFuelPerJump / FSDLinearConstant, 1.0 / FSDPowerConstant);
+                range = fsdRange + GuardianFSDBonus;
+            }
+            else
+            {
+                range = BaseJumpRange > 0 ? BaseJumpRange : LastJumpDistance;
+            }
+            return boosted && IsFsdBoosted ? range * BoostValue : range;
         }
 
         private static void ParseFSDData(LoadoutEvent.LoadoutEventArgs loadout)
@@ -397,6 +436,7 @@ namespace Elite
 
                     EliteData.StarSystem = locationInfo.StarSystem;
                     EliteData.StarSystemAddress = locationInfo.SystemAddress;
+                    SetStarPos(locationInfo.StarPos);
                     var locTs = ((JournalEventArgs)e).OriginalEvent?.Value<DateTime>("timestamp") ?? DateTime.MinValue;
                     if ((DateTime.UtcNow - locTs).TotalHours < 24)
                         NeutronPlotRoute.SetSystemCurrent(locationInfo.StarSystem);
@@ -459,6 +499,7 @@ namespace Elite
 
                     EliteData.StarSystem = fsdJumpInfo.StarSystem;
                     EliteData.StarSystemAddress = fsdJumpInfo.SystemAddress;
+                    SetStarPos(fsdJumpInfo.StarPos);
                     EliteData.LastJumpDistance = fsdJumpInfo.JumpDist;
                     EliteData.IsFsdBoosted = false;
                     EliteData.BoostValue = 1.0;
@@ -474,6 +515,7 @@ namespace Elite
 
                     EliteData.StarSystem = carrierJumpInfo.StarSystem;
                     EliteData.StarSystemAddress = carrierJumpInfo.SystemAddress;
+                    SetStarPos(carrierJumpInfo.StarPos);
                     break;
 
                 case "SupercruiseExit":

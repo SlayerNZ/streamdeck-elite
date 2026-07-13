@@ -170,6 +170,7 @@ namespace Elite.Buttons
                 case "routeStatus":         return "STATUS";
                 case "distanceTravelled":   return "TRIP DIST";
                 case "distanceTarget":      return "TGT DIST";
+                case "jumpsToRejoin":       return "REJOIN";
                 case "destinationDistance": return "DEST DIST";
                 case "currentJumpNumber":   return "JUMP NBR";
                 case "totalJumps":          return "JUMPS TOT";
@@ -192,7 +193,10 @@ namespace Elite.Buttons
                 case "targetSystemName":    return snapshot.SystemTarget;
                 case "routeStatus":         return snapshot.RouteStatus;
                 case "distanceTravelled":   return snapshot.WaypointCurrent >= 0 ? $"{snapshot.DistanceTravelled:#,##0.0} LY" : string.Empty;
-                case "distanceTarget":      return snapshot.WaypointCurrent >= 0 ? $"{snapshot.DistanceTarget:#,##0.0} LY"    : string.Empty;
+                case "distanceTarget":
+                    if (snapshot.WaypointCurrent >= 0) return $"{snapshot.DistanceTarget:#,##0.0} LY";
+                    return snapshot.IsOffRouteEstimate ? $"~{snapshot.DistanceTarget:#,##0.0} LY" : string.Empty;
+                case "jumpsToRejoin":       return snapshot.IsOffRouteEstimate ? $"~{snapshot.JumpsToRejoin}" : string.Empty;
                 case "destinationDistance": return snapshot.WaypointCurrent >= 0 ? $"{snapshot.DistanceDestination:#,##0.0} LY" : string.Empty;
                 case "currentJumpNumber":   return (snapshot.WaypointMax - snapshot.JumpRemaining).ToString();
                 case "totalJumps":          return snapshot.WaypointMax.ToString();

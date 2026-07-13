@@ -315,7 +315,10 @@ namespace Elite.Buttons
                 case "targetSystemName":    return snapshot.SystemTarget;
                 case "routeStatus":         return snapshot.RouteStatus;
                 case "distanceTravelled":   return snapshot.WaypointCurrent >= 0 ? $"{snapshot.DistanceTravelled:#,##0.0} LY" : string.Empty;
-                case "distanceTarget":      return snapshot.WaypointCurrent >= 0 ? $"{snapshot.DistanceTarget:#,##0.0} LY"    : string.Empty;
+                case "distanceTarget":
+                    if (snapshot.WaypointCurrent >= 0) return $"{snapshot.DistanceTarget:#,##0.0} LY";
+                    return snapshot.IsOffRouteEstimate ? $"~{snapshot.DistanceTarget:#,##0.0} LY" : string.Empty;
+                case "jumpsToRejoin":       return snapshot.IsOffRouteEstimate ? $"~{snapshot.JumpsToRejoin}" : string.Empty;
                 case "destinationDistance": return snapshot.WaypointCurrent >= 0 ? $"{snapshot.DistanceDestination:#,##0.0} LY" : string.Empty;
                 case "currentJumpNumber":   return (snapshot.WaypointMax - snapshot.JumpRemaining).ToString();
                 case "totalJumps":          return snapshot.WaypointMax.ToString();
@@ -349,21 +352,7 @@ namespace Elite.Buttons
 
         private static string FormatJumpRange()
         {
-            double range;
-            if (EliteData.FSDOptimalMass > 0 && EliteData.FSDMaxFuelPerJump > 0 && EliteData.UnladenMass > 0)
-            {
-                var totalMass = EliteData.UnladenMass + EliteData.StatusData.Fuel.FuelMain + EliteData.StatusData.Cargo;
-                var fsdRange = EliteData.FSDOptimalMass / totalMass
-                    * Math.Pow(EliteData.FSDMaxFuelPerJump / EliteData.FSDLinearConstant, 1.0 / EliteData.FSDPowerConstant);
-                var currentRange = fsdRange + EliteData.GuardianFSDBonus;
-                range = EliteData.IsFsdBoosted ? currentRange * EliteData.BoostValue : currentRange;
-            }
-            else
-            {
-                range = EliteData.BaseJumpRange > 0
-                    ? EliteData.BaseJumpRange * (EliteData.IsFsdBoosted ? EliteData.BoostValue : 1.0)
-                    : EliteData.LastJumpDistance;
-            }
+            var range = EliteData.GetJumpRange(boosted: true);
             return $"{range:0.0} LY{(EliteData.IsFsdBoosted ? " ⚡" : "")}";
         }
 
@@ -379,7 +368,10 @@ namespace Elite.Buttons
 
             var color = ParseColor(hex, Color.White);
 
-            if (snapshot != null && snapshot.WaypointCurrent < 0 && IsWaypointCurrentDependent(infoType))
+            // Off-route metrics grey out — except distanceTarget when it's a live straight-line
+            // estimate (the "~" already signals it's approximate, so show it at full strength).
+            if (snapshot != null && snapshot.WaypointCurrent < 0 && IsWaypointCurrentDependent(infoType)
+                && !(snapshot.IsOffRouteEstimate && infoType == "distanceTarget"))
                 return Color.FromArgb(color.R / 2, color.G / 2, color.B / 2);
 
             return color;

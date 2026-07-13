@@ -382,6 +382,7 @@ namespace Elite.Buttons
                 case "routeStatus":         return "STATUS";
                 case "distanceTravelled":   return "TRIP DIST";
                 case "distanceTarget":      return "TGT DIST";
+                case "jumpsToRejoin":       return "REJOIN";
                 case "destinationDistance": return "DEST DIST";
                 case "currentJumpNumber":   return "JUMP NBR";
                 case "totalJumps":          return "JUMPS TOT";
@@ -404,7 +405,10 @@ namespace Elite.Buttons
                 case "targetSystemName":    return snapshot.SystemTarget;
                 case "routeStatus":         return snapshot.RouteStatus;
                 case "distanceTravelled":   return snapshot.WaypointCurrent >= 0 ? $"{snapshot.DistanceTravelled:#,##0.0} LY" : string.Empty;
-                case "distanceTarget":      return snapshot.WaypointCurrent >= 0 ? $"{snapshot.DistanceTarget:#,##0.0} LY"    : string.Empty;
+                case "distanceTarget":
+                    if (snapshot.WaypointCurrent >= 0) return $"{snapshot.DistanceTarget:#,##0.0} LY";
+                    return snapshot.IsOffRouteEstimate ? $"~{snapshot.DistanceTarget:#,##0.0} LY" : string.Empty;
+                case "jumpsToRejoin":       return snapshot.IsOffRouteEstimate ? $"~{snapshot.JumpsToRejoin}" : string.Empty;
                 case "destinationDistance": return snapshot.WaypointCurrent >= 0 ? $"{snapshot.DistanceDestination:#,##0.0} LY" : string.Empty;
                 case "currentJumpNumber":   return (snapshot.WaypointMax - snapshot.JumpRemaining).ToString();
                 case "totalJumps":          return snapshot.WaypointMax.ToString();
@@ -468,7 +472,10 @@ namespace Elite.Buttons
 
             var color = ParseColor(hex, Color.White);
 
-            if (snapshot != null && snapshot.WaypointCurrent < 0 && IsWaypointCurrentDependent(infoType))
+            // Off-route metrics grey out — except distanceTarget when it's a live straight-line
+            // estimate (the "~" already signals it's approximate, so show it at full strength).
+            if (snapshot != null && snapshot.WaypointCurrent < 0 && IsWaypointCurrentDependent(infoType)
+                && !(snapshot.IsOffRouteEstimate && infoType == "distanceTarget"))
                 return Color.FromArgb(color.R / 2, color.G / 2, color.B / 2);
 
             return color;

@@ -70,6 +70,12 @@ namespace Elite
         // Nearest scoopable star to the target system, in light-seconds (Phase 2 EDSM enrichment).
         // double.NaN = not yet looked up; -1 = looked up, none found; >= 0 = nearest scoopable distance.
         public double ScoopableLs { get; set; } = double.NaN;
+
+        // Phase B off-route estimates. When true, DistanceTarget is a straight-line ESTIMATE (current→target)
+        // from coords, and JumpsToRejoin = ceil(that / laden range). Displayed with a "~" marker because the
+        // straight line ignores the zig-zag neutron path. False when on-route or coords are unavailable.
+        public bool IsOffRouteEstimate { get; set; }
+        public int JumpsToRejoin { get; set; }
     }
 
     public static class NeutronPlotRoute
@@ -78,6 +84,13 @@ namespace Elite
         // Single serialized waypoint table for BOTH route types (CSV + Spansh), with EDSM
         // enrichment (coords/fuel) baked in. Replaced on each replot; wiped on clear.
         private const string WaypointsFileName = "neutronRouteWaypoints.json";
+
+        // Conservative padding added to the ship's dry mass for Spansh plots, so planned hops keep a
+        // little headroom instead of sitting at the ragged edge of max range. 0.5% shaves ~0.5% off
+        // range — but on a neutron route the jet-cone boost amplifies that in absolute LY (~2.4 LY per
+        // ~470 LY hop on the 6x Caspian), which is enough to cover the ~0.4% formula optimism plus
+        // in-trip fuel/cargo swing without bloating the jump count.
+        private const double SpanshConservativeMassFraction = 0.005;
 
         // EDSM enrichment is written straight onto the waypoints (FuelStarLs / X,Y,Z) and persists
         // with the serialized route, so there is no separate cross-route cache. enrichInFlight just
@@ -582,6 +595,24 @@ namespace Elite
             EnsureCoords(waypoint.SystemName);
             snapshot.WaypointTarget = Math.Max(0, state.WaypointTarget);
 
+            // Phase B: off-route straight-line ESTIMATES. When the player is off-route (no matching
+            // waypoint) but we have live current coords + EDSM-enriched target coords, rebuild the
+            // greyed-out distance-to-target and derive a jumps-to-rejoin count. Marked "~" in the UI
+            // because a straight line ignores the neutron route's zig-zag. NaN X = looked-up-unknown.
+            if (snapshot.WaypointCurrent < 0 && EliteData.HasStarPos &&
+                waypoint.X.HasValue && !double.IsNaN(waypoint.X.Value))
+            {
+                var dx = waypoint.X.Value - EliteData.StarPosX;
+                var dy = waypoint.Y.Value - EliteData.StarPosY;
+                var dz = waypoint.Z.Value - EliteData.StarPosZ;
+                var straight = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+
+                snapshot.DistanceTarget = straight;
+                var range = EliteData.GetJumpRange(boosted: false);
+                snapshot.JumpsToRejoin = range > 0 ? (int)Math.Ceiling(straight / range) : 0;
+                snapshot.IsOffRouteEstimate = true;
+            }
+
             // Use WaypointCurrent for position metrics; fall back to WaypointTarget-1 when off-route
             var positionIndex = snapshot.WaypointCurrent >= 0
                 ? snapshot.WaypointCurrent
@@ -645,7 +676,7 @@ namespace Elite
                 Logger.Instance.LogMessage(TracingLevel.INFO,
                     $"Spansh plot ship='{EliteData.ShipType}' optimal_mass={form["optimal_mass"]} base_mass={form["base_mass"]} " +
                     $"max_fuel_per_jump={form["max_fuel_per_jump"]} range_boost={form["range_boost"]} " +
-                    $"supercharge_multiplier={form["supercharge_multiplier"]} " +
+                    $"supercharge_multiplier={form["supercharge_multiplier"]} is_supercharged={form["is_supercharged"]} " +
                     $"fuel_power={form["fuel_power"]} fuel_multiplier={form["fuel_multiplier"]} tank_size={form["tank_size"]}");
 
                 var ct = spanshCts.Token;
@@ -663,8 +694,11 @@ namespace Elite
             {
                 ["source"] = source.ToString(CultureInfo.InvariantCulture),
                 ["destination"] = destination.ToString(CultureInfo.InvariantCulture),
-                ["is_supercharged"] = "0",
-                ["use_supercharge"] = "1",   // allow neutron supercharging
+                // Is the FIRST jump launched from an already-boosted state? Report the live jet-cone
+                // boost (set by JetConeBoost, cleared on FSDJump) so replotting while boosted lets
+                // Spansh plan a longer opening hop.
+                ["is_supercharged"] = EliteData.IsFsdBoosted ? "1" : "0",
+                ["use_supercharge"] = "1",   // allow neutron supercharging along the route
                 ["use_injections"] = "0",
                 ["use_injections_when_required"] = "0",
                 ["exclude_secondary"] = "0",
@@ -672,7 +706,7 @@ namespace Elite
                 ["fuel_power"] = N(EliteData.FSDPowerConstant),
                 ["fuel_multiplier"] = N(EliteData.FSDLinearConstant),
                 ["optimal_mass"] = N(EliteData.FSDOptimalMass),
-                ["base_mass"] = N(EliteData.UnladenMass),                 // fuel-excluded (= Coriolis dryMass)
+                ["base_mass"] = N(EliteData.UnladenMass * (1.0 + SpanshConservativeMassFraction)),  // dry mass + conservative pad
                 ["tank_size"] = N(EliteData.FuelCapacityMain),
                 ["internal_tank_size"] = N(EliteData.FuelCapacityReserve),
                 ["reserve_size"] = "0",   // no extra main-tank buffer; plan with the full usable tank
