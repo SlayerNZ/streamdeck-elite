@@ -30,7 +30,7 @@ namespace Elite
         private static readonly object SyncRoot = new object();
 
         // Full waypoint list including origin — NOT Skip(1) — so we have all StarPos
-        private static readonly List<RouteItem> Waypoints = new List<RouteItem>();
+        private static readonly List<RouteElement> Waypoints = new List<RouteElement>();
         private static double[] _cumulativeDistance = Array.Empty<double>();
 
         // Index into Waypoints of the player's current position. 0 = at origin.

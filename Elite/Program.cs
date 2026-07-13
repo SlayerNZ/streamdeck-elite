@@ -754,6 +754,81 @@ namespace Elite
         }
 
         /// <summary>
+        /// Reconstructs the active route's waypoint list (EliteData.RouteList) on startup by
+        /// reading NavRoute.json directly, so RouteAdv's Next System / Destination options work
+        /// right away instead of staying empty until the player replots.
+        ///
+        /// Important: the "NavRoute" line in the journal LOG is just a short notification stub -
+        /// the actual route waypoints (with coordinates) are written to a separate snapshot file,
+        /// NavRoute.json, in the same folder as the journal. That file holds whatever route is
+        /// CURRENTLY active (it's overwritten on replot, and cleared to an empty Route array by
+        /// NavRouteClear), so we just read it directly instead of searching journal history.
+        ///
+        /// Note: this intentionally does NOT try to trim off already-completed waypoints - the
+        /// list read here always starts at the route's second system (the game's NavRoute.json
+        /// never removes visited legs). RouteAdv.cs realigns this against the live
+        /// RemainingJumpsInRoute count on every single read instead, which self-corrects no matter
+        /// how stale this backfilled list becomes as jumps happen.
+        /// </summary>
+        private static void BackfillRouteState(string journalPath)
+        {
+            try
+            {
+                var navRouteFilePath = Path.Combine(journalPath, "NavRoute.json");
+
+                if (!File.Exists(navRouteFilePath))
+                {
+                    Logger.Instance.LogMessage(TracingLevel.INFO, "BackfillRoute: NavRoute.json not found - no active route");
+                    return;
+                }
+
+                JObject navRouteObj;
+                try
+                {
+                    string json;
+                    using (var fs = new FileStream(navRouteFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    using (var reader = new StreamReader(fs))
+                        json = reader.ReadToEnd();
+
+                    navRouteObj = JObject.Parse(json);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.LogMessage(TracingLevel.FATAL, $"BackfillRoute: failed to read/parse NavRoute.json: {ex}");
+                    return;
+                }
+
+                NavRouteEvent.NavRouteEventArgs navRouteArgs;
+                try
+                {
+                    navRouteArgs = navRouteObj.ToObject<NavRouteEvent.NavRouteEventArgs>();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.LogMessage(TracingLevel.FATAL, $"BackfillRoute: failed to parse NavRoute.json contents: {ex}");
+                    return;
+                }
+
+                if (navRouteArgs?.Route == null || navRouteArgs.Route.Length < 2)
+                {
+                    Logger.Instance.LogMessage(TracingLevel.INFO, "BackfillRoute: NavRoute.json has no active route");
+                    return;
+                }
+
+                // Reuse the same handler the live journal watcher uses, so RouteList, TotalJumpsInRoute,
+                // and the on-disk progress cache all end up exactly as they would from a live NavRoute event.
+                EliteData.HandleNavRouteEvents(null, navRouteArgs);
+
+                Logger.Instance.LogMessage(TracingLevel.INFO,
+                    $"BackfillRoute: backfilled route with {EliteData.RouteList?.Count ?? 0} waypoint(s)");
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogMessage(TracingLevel.FATAL, $"BackfillRoute: {ex}");
+            }
+        }
+
+        /// <summary>
         /// Reconstructs ExoBiology scan state from recent journal files on startup, so the button
         /// shows the correct genus, scan count, zone, and distance immediately.
         ///
@@ -1123,14 +1198,15 @@ namespace Elite
 
                 StatusWatcher.StartWatching();
 
-                JournalWatcher = new JournalWatcher(journalPath, defaultFilter);
+                JournalWatcher = new JournalWatcher(journalPath);
 
-                JournalWatcher.AllEventHandler += EliteData.HandleEliteEvents;
+                JournalWatcher.MessageReceived += EliteData.HandleEliteEvents;
 
                 JournalWatcher.StartWatching().Wait();
 
                 // Recover the current ship's fuel model if the current session logged no Loadout
-                // (StartWatching only replays the current session file).
+                // (StartWatching only replays the current session file). Fires the full Loadout
+                // handler, so this also covers RouteAdv's Jump Range (mass + MaxJumpRange).
                 BackfillLoadout(journalPath);
 
                 // Backfill scan cache from recent journal files for current star system
@@ -1138,6 +1214,12 @@ namespace Elite
 
                 // Backfill exobiology scan state from the current session journal
                 BackfillExoBiologyState(journalPath);
+
+                // Backfill the active route's waypoint list from the most recent NavRoute event,
+                // trimmed to match jumps already completed - NavRoute only fires once when a route
+                // is plotted, so a route plotted in an earlier session would otherwise leave
+                // RouteAdv's Next System / Destination options stuck at 0.0 ly forever.
+                BackfillRouteState(journalPath);
 
                 // Watch journal for FSSBodySignals and SAASignalsFound independently
                 WatchJournalForSignals(journalPath);

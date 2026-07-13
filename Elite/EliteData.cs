@@ -1,8 +1,10 @@
 using BarRaider.SdTools;
 using EliteJournalReader;
 using EliteJournalReader.Events;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 
@@ -15,13 +17,11 @@ namespace Elite
         public static DateTime LastUnderAttackEvent = DateTime.Now;
         public static bool IsFsdBoosted = false;
         public static double LastJumpDistance = 0.0;
-        public static double BaseJumpRange = 0.0;
         public static double BoostValue = 1.0;
         // Neutron jet-cone supercharge factor for THIS ship (Spansh exact-plotter supercharge_multiplier).
         // Almost all ships boost 4x; the Caspian Explorer's SCO Mk II drive boosts 6x. Seeded from a
         // ship-type default on ship change, then refined to the exact game-reported value by JetConeBoost.
         public static double NeutronBoostMultiplier = 4.0;
-        public static double UnladenMass = 0.0;
         public static double FSDOptimalMass = 0.0;
         public static double FSDMaxFuelPerJump = 0.0;
         public static double FSDLinearConstant = 0.0;
@@ -34,8 +34,21 @@ namespace Elite
         public static long FsdTargetAddress { get; set; }   // id64 of FSD-targeted system (FSDTarget event)
         public static long StarSystemAddress { get; set; }  // id64 of current system (Location/FSDJump/etc.)
         public static int RemainingJumpsInRoute { get; set; }
+        public static int TotalJumpsInRoute { get; set; }
+
+        // The final destination this TotalJumpsInRoute belongs to, so we know whether a
+        // re-fired NavRoute event is the SAME route continuing (e.g. after a relaunch / reopening
+        // the Galaxy Map) or a genuinely NEW route that should reset the jump total.
+        public static string RouteFinalDestination { get; set; }
+
+        // For an approximate current jump range (see RouteAdv's "Jump Range" option). Both come
+        // from the Loadout event - UnladenMass is hull+modules only (excludes fuel/cargo), and
+        // BaseJumpRange is the game's own "best case" figure (zero cargo, fuel for one jump).
+        public static double UnladenMass { get; set; }
+        public static double BaseJumpRange { get; set; }
         public static string StarClass { get; set; }
         public static string StarSystem { get; set; }
+        public static SystemPosition CurrentStarPos { get; set; }
 
         // Current-system galactic coordinates (LY), from the StarPos of Location/FSDJump/CarrierJump.
         // Used for off-route straight-line estimates. HasStarPos guards against the unset (0,0,0) default.
@@ -170,18 +183,93 @@ namespace Elite
             public bool TelepresenceMulticrew { get; set; }
             public bool PhysicalMulticrew { get; set; }
             public bool Fsdhyperdrivecharging { get; set; }
+            public bool SuperCruiseOvercharge { get; set; }
+            public bool SuperCruiseAssist { get; set; }
             public string SelectedWeapon { get; set; }
             public double Temperature { get; set; }
             public string DestinationName { get; set; }
+
+            // Numeric on-foot suit/environment readings from status.json
+            // Oxygen and Health are 0.0–1.0 (multiply by 100 for %)
+            // Gravity is live g-force at current position
+            public double Oxygen { get; set; }
+            public double Health { get; set; }
+            public double Gravity { get; set; }
         }
 
         public static Status StatusData = new Status();
 
+        // ── Route progress cache ────────────────────────────────────────────────
+        // Survives a game/plugin relaunch so the RouteAdv progress % stays correct even
+        // though the game only re-reports the REMAINING route, not the original total.
+        private static bool _routeCacheLoaded = false;
+
+        private static readonly string RouteCacheFilePath =
+            Path.Combine(Directory.GetCurrentDirectory(), "RouteProgressCache.json");
+
+        private class RouteProgressCache
+        {
+            public string FinalDestination { get; set; }
+            public int TotalJumps { get; set; }
+        }
+
+        private static void LoadRouteProgressCacheIfNeeded()
+        {
+            if (_routeCacheLoaded)
+            {
+                return;
+            }
+
+            _routeCacheLoaded = true;
+
+            try
+            {
+                if (File.Exists(RouteCacheFilePath))
+                {
+                    var json = File.ReadAllText(RouteCacheFilePath);
+                    var cache = JsonConvert.DeserializeObject<RouteProgressCache>(json);
+
+                    if (cache != null)
+                    {
+                        RouteFinalDestination = cache.FinalDestination;
+                        TotalJumpsInRoute = cache.TotalJumps;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogMessage(TracingLevel.FATAL, "EliteData LoadRouteProgressCache " + ex);
+            }
+        }
+
+        private static void SaveRouteProgressCache()
+        {
+            try
+            {
+                var cache = new RouteProgressCache
+                {
+                    FinalDestination = RouteFinalDestination,
+                    TotalJumps = TotalJumpsInRoute
+                };
+
+                File.WriteAllText(RouteCacheFilePath, JsonConvert.SerializeObject(cache));
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogMessage(TracingLevel.FATAL, "EliteData SaveRouteProgressCache " + ex);
+            }
+        }
+
         public static void HandleNavRouteEvents(object sender, NavRouteEvent.NavRouteEventArgs info)
         {
+            LoadRouteProgressCacheIfNeeded();
+
             if (info?.Route == null || info.Route.Length < 2)
             {
                 RouteList = new List<RouteItem>();
+                TotalJumpsInRoute = 0;
+                RouteFinalDestination = null;
+                SaveRouteProgressCache();
             }
             else
             {
@@ -194,6 +282,19 @@ namespace Elite
                         SystemAddress = x.SystemAddress,
                     }).Skip(1).ToList();
 
+                var newFinalDestination = RouteList.Count > 0
+                    ? RouteList[RouteList.Count - 1].SystemAddress.ToString()
+                    : null;
+
+                if (newFinalDestination != RouteFinalDestination)
+                {
+                    // Genuinely new route (different final destination) - reset the jump total
+                    RouteFinalDestination = newFinalDestination;
+                    TotalJumpsInRoute = RouteList.Count;
+                    SaveRouteProgressCache();
+                }
+                // else: the SAME destination re-fired (relaunch, reopening the Galaxy Map, etc.)
+                // - keep whatever TotalJumpsInRoute we already have (loaded from cache or in memory).
             }
         }
 
@@ -249,7 +350,7 @@ namespace Elite
             StatusData.Cargo = evt.Cargo;
             StatusData.JumpRange = evt.MaxJumpRange;
 
-            StatusData.LegalState = evt.LegalState;
+            StatusData.LegalState = evt.LegalState.ToString();
 
             StatusData.Firegroup = evt.Firegroup;
             StatusData.GuiFocus = evt.GuiFocus;
@@ -280,24 +381,32 @@ namespace Elite
 
             StatusData.GlideMode = (evt.Flags2 & MoreStatusFlags.GlideMode) != 0;
             StatusData.OnFootInHangar = (evt.Flags2 & MoreStatusFlags.OnFootInHangar) != 0;
-            StatusData.OnFootSocialSpace = (evt.Flags2 & MoreStatusFlags.OnFootSocialSpace) != 0;
+            StatusData.OnFootSocialSpace = (evt.Flags2 & MoreStatusFlags.OnFootInSocialSpace) != 0;
             StatusData.OnFootExterior = (evt.Flags2 & MoreStatusFlags.OnFootExterior) != 0;
             StatusData.BreathableAtmosphere = (evt.Flags2 & MoreStatusFlags.BreathableAtmosphere) != 0;
 
             StatusData.TelepresenceMulticrew = (evt.Flags2 & MoreStatusFlags.TelepresenceMulticrew) != 0;
             StatusData.PhysicalMulticrew = (evt.Flags2 & MoreStatusFlags.PhysicalMulticrew) != 0;
 
-            StatusData.Fsdhyperdrivecharging = (evt.Flags2 & MoreStatusFlags.Fsdhyperdrivecharging) != 0;
+            StatusData.Fsdhyperdrivecharging = (evt.Flags2 & MoreStatusFlags.FsdHyperdriveCharging) != 0;
+            StatusData.SuperCruiseOvercharge = (evt.Flags2 & MoreStatusFlags.SuperCruiseOvercharge) != 0;
+            StatusData.SuperCruiseAssist = (evt.Flags2 & MoreStatusFlags.SuperCruiseAssist) != 0;
             StatusData.SelectedWeapon = evt.SelectedWeapon;
             StatusData.Temperature = evt.Temperature;
-            StatusData.DestinationName = evt.Destination.Name ?? string.Empty;
+            StatusData.DestinationName = evt.Destination?.Name ?? string.Empty;
+            StatusData.Oxygen = evt.Oxygen;
+            StatusData.Health = evt.Health;
+            StatusData.Gravity = evt.Gravity;
         }
 
 
         // Records the player's current-system coordinates from a StarPos (decimal) so off-route
-        // straight-line estimates have a live origin point.
+        // straight-line estimates have a live origin point. Also feeds upstream's CurrentStarPos.
+        // SystemPosition is a reference type in the new EliteJournalReader, so guard against null.
         private static void SetStarPos(SystemPosition pos)
         {
+            if (pos == null) return;
+            EliteData.CurrentStarPos = pos;
             EliteData.StarPosX = (double)pos.X;
             EliteData.StarPosY = (double)pos.Y;
             EliteData.StarPosZ = (double)pos.Z;
@@ -363,13 +472,13 @@ namespace Elite
                 return;
             }
 
-            // FSDOptimalMass from engineering modifier
+            // FSDOptimalMass from engineering modifier (Modifier.Value is non-nullable double in the new EJR)
             var optMass = fsd.Engineering?.Modifiers?.FirstOrDefault(m => m.Label == ModuleAttribute.FSDOptimalMass);
-            EliteData.FSDOptimalMass = optMass?.Value > 0 ? optMass.Value.Value : 0.0;
+            EliteData.FSDOptimalMass = optMass?.Value > 0 ? optMass.Value : 0.0;
 
             // MaxFuelPerJump from engineering modifier (present when engineered)
             var maxFuel = fsd.Engineering?.Modifiers?.FirstOrDefault(m => m.Label == ModuleAttribute.MaxFuelPerJump);
-            double explicitMaxFuel = maxFuel?.Value > 0 ? maxFuel.Value.Value : 0.0;
+            double explicitMaxFuel = maxFuel?.Value > 0 ? maxFuel.Value : 0.0;
 
             // FSD size and rating from item name (e.g. int_hyperdrive_overcharge_size5_class5 or int_hyperdrive_size5_classa)
             var item = fsd.Item ?? string.Empty;
@@ -417,9 +526,10 @@ namespace Elite
             return f;
         }
 
-        public static void HandleEliteEvents(object sender, JournalEventArgs e)
+        public static void HandleEliteEvents(object sender, MessageReceivedEventArgs args)
         {
-            var evt = ((JournalEventArgs)e).OriginalEvent.Value<string>("event");
+            var e = args.EventArgs;
+                        var evt = ((JournalEventArgs)e).OriginalEvent.Value<string>("event");
 
             if (string.IsNullOrWhiteSpace(evt))
             {
@@ -584,6 +694,9 @@ namespace Elite
 
                     EliteData.RouteList = new List<RouteItem>();
                     EliteData.RemainingJumpsInRoute = 0;
+                    EliteData.TotalJumpsInRoute = 0;
+                    EliteData.RouteFinalDestination = null;
+                    EliteData.SaveRouteProgressCache();
 
                     break;
 
