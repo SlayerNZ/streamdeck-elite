@@ -5,7 +5,7 @@ Like macrossmerrell, I'm an explorer.  I needed to make neutron highway plots an
 
 **Ensure .NET 10 Desktop Runtime is installed** for proper operation: https://dotnet.microsoft.com/en-us/download/dotnet/10.0
 
-Latest Release: https://github.com/sangclan-ship-it/streamdeck-elite
+Latest Release: https://github.com/SlayerNZ/streamdeck-elite
 
 ## ⚠️ Important — EliteJournalReader Library Upgrade (v4.0.0)
 

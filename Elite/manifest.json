@@ -421,12 +421,12 @@
       "PropertyInspectorPath": "PropertyInspector/Elite/NeutronPlotDial.html"
     }
   ],
-  "Author": "mhwlng, DrFr33ze, macrossmerrell, sangclan-ship-it",
+  "Author": "mhwlng, DrFr33ze, macrossmerrell, SlayerNZ",
   "Description": "Elite Dangerous Buttons - Explorer Edition",
   "Name": "Elite Dangerous",
   "Icon": "Images/pluginIcon",
-  "URL": "https://github.com/sangclan-ship-it/streamdeck-elite",
-  "Version": "4.1.0.1",
+  "URL": "https://github.com/SlayerNZ/streamdeck-elite",
+  "Version": "4.1.0.2",
   "CodePath": "com.mhwlng.elite",
   "Category": "Elite Dangerous",
   "CategoryIcon": "Images/categoryIcon",
