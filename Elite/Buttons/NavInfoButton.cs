@@ -253,6 +253,7 @@ namespace Elite.Buttons
                 case "neutronStar":         return "NEUTRON";
                 case "jumpsToFuelStar":     return "FUEL IN";
                 case "estJumpsInTank":      return "JUMP CAP";
+                case "nextJumpStar":        return "NEXT STAR";
                 default:                    return string.Empty;
             }
         }
@@ -266,6 +267,9 @@ namespace Elite.Buttons
 
                 case "fuelMain":
                     return $"{EliteData.StatusData.Fuel.FuelMain:0.0}t";
+
+                case "nextJumpStar":
+                    return EliteData.FormatNextJumpStar();
 
                 case "currentSystem":
                     return snapshot.SystemCurrent;

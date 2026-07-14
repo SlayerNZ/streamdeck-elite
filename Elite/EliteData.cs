@@ -55,6 +55,10 @@ namespace Elite
         public static double StarPosX, StarPosY, StarPosZ;
         public static bool HasStarPos = false;
 
+        // Destination star class of the in-progress hyperspace jump (from StartJump), for a live
+        // "next jump star" heads-up. Set at FSD-charge time, cleared on arrival (FSDJump).
+        public static string NextJumpStarClass = string.Empty;
+
         public static List<RouteItem> RouteList = new List<RouteItem>();
 
 
@@ -413,6 +417,17 @@ namespace Elite
             EliteData.HasStarPos = true;
         }
 
+        // Formats the live hyperspace-jump destination star (from StartJump) for display:
+        // neutron / scoopable (KGBFOAM) / other class. Blank when no jump is in progress.
+        public static string FormatNextJumpStar()
+        {
+            var c = NextJumpStarClass;
+            if (string.IsNullOrEmpty(c)) return string.Empty;
+            if (string.Equals(c, "N", StringComparison.OrdinalIgnoreCase)) return "NEUTRON";
+            var up = char.ToUpperInvariant(c[0]);
+            return "KGBFOAM".IndexOf(up) >= 0 ? "⛽ " + c : c;   // ⛽ = scoopable main-sequence star
+        }
+
         // Known neutron jet-cone boost factor by ship, used as a cold-start default before the game
         // reports the real value via JetConeBoost. Currently only the Caspian Explorer differs (6x).
         private static double DefaultNeutronBoost(string ship)
@@ -603,6 +618,14 @@ namespace Elite
                         EliteData.NeutronBoostMultiplier = jetConeInfo.BoostValue;
                     break;
 
+                case "StartJump":
+                    // Fired when the FSD begins charging for a jump. For a hyperspace jump it carries the
+                    // destination star class — a live "neutron/scoopable ahead" heads-up before arrival.
+                    var startJumpInfo = (StartJumpEvent.StartJumpEventArgs)e;
+                    if (startJumpInfo.JumpType == JumpType.Hyperspace)
+                        EliteData.NextJumpStarClass = startJumpInfo.StarClass ?? string.Empty;
+                    break;
+
                 case "FSDJump":
                     //When written: when jumping from one star system to another
                     var fsdJumpInfo = (FSDJumpEvent.FSDJumpEventArgs)e;
@@ -613,6 +636,7 @@ namespace Elite
                     EliteData.LastJumpDistance = fsdJumpInfo.JumpDist;
                     EliteData.IsFsdBoosted = false;
                     EliteData.BoostValue = 1.0;
+                    EliteData.NextJumpStarClass = string.Empty;   // arrived — clear the live "next jump star"
                     var fsdTs = ((JournalEventArgs)e).OriginalEvent?.Value<DateTime>("timestamp") ?? DateTime.MinValue;
                     if ((DateTime.UtcNow - fsdTs).TotalHours < 1)
                         NeutronPlotRoute.RouteAutoAdvance(fsdJumpInfo.StarSystem);

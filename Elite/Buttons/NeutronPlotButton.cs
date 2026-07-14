@@ -329,6 +329,7 @@ namespace Elite.Buttons
                 case "neutronAtTarget":     return snapshot.StarNeutron;
                 case "jumpRange":           return FormatJumpRange();
                 case "fuelMain":            return $"{EliteData.StatusData.Fuel.FuelMain:0.0}t";
+                case "nextJumpStar":        return EliteData.FormatNextJumpStar();
                 default:                    return string.Empty;
             }
         }
