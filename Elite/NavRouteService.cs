@@ -123,7 +123,7 @@ namespace Elite
                 }
 
                 if (targetIdx <= snap.WaypointMax)
-                    snap.HopDistance = HopDist(_waypointCurrent, targetIdx);
+                    snap.HopDistance = HopDistFromCurrent(targetIdx);
 
                 // Star type flags for the TARGET system
                 if (targetIdx <= snap.WaypointMax)
@@ -160,6 +160,21 @@ namespace Elite
             var dx = (double)(b.X - a.X);
             var dy = (double)(b.Y - a.Y);
             var dz = (double)(b.Z - a.Z);
+            return Math.Sqrt(dx * dx + dy * dy + dz * dz);
+        }
+
+        // Distance to a route waypoint measured from the player's LIVE position (CurrentStarPos),
+        // so "distance to next system" stays accurate when off the exact current node. Falls back to
+        // the waypoint-to-waypoint measure if live coords aren't available yet (SystemPosition is a
+        // reference type in the new EliteJournalReader, so it can be null).
+        private static double HopDistFromCurrent(int toIdx)
+        {
+            var cur = EliteData.CurrentStarPos;
+            var b = Waypoints[toIdx].StarPos;
+            if (cur == null || b == null) return HopDist(_waypointCurrent, toIdx);
+            var dx = (double)(b.X - cur.X);
+            var dy = (double)(b.Y - cur.Y);
+            var dz = (double)(b.Z - cur.Z);
             return Math.Sqrt(dx * dx + dy * dy + dz * dz);
         }
 
