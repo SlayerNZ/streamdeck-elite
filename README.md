@@ -15,7 +15,7 @@ This release upgrades the plugin's underlying `EliteJournalReader` library (the 
 
 ---
 
-## New & Update Features (v3.2.0)
+## New & Update Features (v4.1.0.2)
 
 ### 🚀 🆕 (NEW) Neutron Plot Route
 
@@ -66,6 +66,8 @@ Three display styles to suit your layout:
 Each row has its own colour, and a configurable **Boost Color** highlights the Jump Range when you've supercharged.
 
 > **NOTE:** Spansh can only plot to systems it already knows about. If you target an unvisited deep-space system the button will say `DEST UNKNOWN` — target a known or previously-visited waypoint instead.
+
+Fixed bug:  The Neutron Boost multiplier was accidentally hardcoded to 4x, which didn't work with the Caspian Explorer.  It's now dynamically generated from the journals so the Spansh plotter can accurately calculate your most efficient route.
 
 📖 **Full walkthrough:** see the [Neutron Plot User Guide](Elite/NeutronPlotGuide.md).
 
