@@ -409,7 +409,7 @@ namespace Elite
         // SystemPosition is a reference type in the new EliteJournalReader, so guard against null.
         private static void SetStarPos(SystemPosition pos)
         {
-            if (pos == null) return;
+            if (pos is null) return;   // "is null" — SystemPosition's == operator throws on a null operand
             EliteData.CurrentStarPos = pos;
             EliteData.StarPosX = (double)pos.X;
             EliteData.StarPosY = (double)pos.Y;

@@ -155,26 +155,28 @@ namespace Elite
 
         private static double HopDist(int fromIdx, int toIdx)
         {
-            var a = Waypoints[fromIdx].StarPos;
-            var b = Waypoints[toIdx].StarPos;
-            var dx = (double)(b.X - a.X);
-            var dy = (double)(b.Y - a.Y);
-            var dz = (double)(b.Z - a.Z);
-            return Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            return Dist(Waypoints[fromIdx].StarPos, Waypoints[toIdx].StarPos);
         }
 
         // Distance to a route waypoint measured from the player's LIVE position (CurrentStarPos),
         // so "distance to next system" stays accurate when off the exact current node. Falls back to
-        // the waypoint-to-waypoint measure if live coords aren't available yet (SystemPosition is a
-        // reference type in the new EliteJournalReader, so it can be null).
+        // the waypoint-to-waypoint measure if live coords aren't available yet.
         private static double HopDistFromCurrent(int toIdx)
         {
             var cur = EliteData.CurrentStarPos;
-            var b = Waypoints[toIdx].StarPos;
-            if (cur == null || b == null) return HopDist(_waypointCurrent, toIdx);
-            var dx = (double)(b.X - cur.X);
-            var dy = (double)(b.Y - cur.Y);
-            var dz = (double)(b.Z - cur.Z);
+            return cur is not null ? Dist(cur, Waypoints[toIdx].StarPos)
+                                   : HopDist(_waypointCurrent, toIdx);
+        }
+
+        // Straight-line 3D distance between two star positions. SystemPosition is a reference type in
+        // the new EliteJournalReader and can be null; guard with "is null" (NOT ==) because its
+        // overloaded == operator dereferences the left operand and throws on a null. A null yields 0.
+        private static double Dist(SystemPosition a, SystemPosition b)
+        {
+            if (a is null || b is null) return 0.0;
+            var dx = (double)(b.X - a.X);
+            var dy = (double)(b.Y - a.Y);
+            var dz = (double)(b.Z - a.Z);
             return Math.Sqrt(dx * dx + dy * dy + dz * dz);
         }
 
