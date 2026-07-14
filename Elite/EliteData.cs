@@ -421,7 +421,12 @@ namespace Elite
         // neutron / scoopable (KGBFOAM) / other class. Blank when no jump is in progress.
         public static string FormatNextJumpStar()
         {
-            var c = NextJumpStarClass;
+            // Prefer the StartJump-confirmed class (shown during the jump tunnel); otherwise, while the
+            // hyperdrive is priming (FsdHyperdriveCharging), use the FSD-targeted system's class from
+            // FSDTarget so it appears the MOMENT the jump sequence starts. Blank when not charging or
+            // jumping — cleared on arrival, and priming stops if the jump is cancelled.
+            var c = !string.IsNullOrEmpty(NextJumpStarClass) ? NextJumpStarClass
+                  : (StatusData.Fsdhyperdrivecharging ? StarClass : string.Empty);
             if (string.IsNullOrEmpty(c)) return string.Empty;
             if (string.Equals(c, "N", StringComparison.OrdinalIgnoreCase)) return "NEUTRON";
             var up = char.ToUpperInvariant(c[0]);
