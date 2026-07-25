@@ -23,15 +23,18 @@ namespace Elite
         // ship-type default on ship change, then refined to the exact game-reported value by JetConeBoost.
         public static double NeutronBoostMultiplier = 4.0;
 
-        // Conservative range trim. Our jump-range formula over-estimates by a flat ~0.9% on the SCO
-        // drive (measured: 82.1 vs 81.39 unboosted = 0.87%, 492.7 vs 488.39 boosted = 0.88% -- same
-        // percentage, because it's a base-range error the neutron boost just scales linearly).
-        // We shave range by (BoostModifier x NeutronBoostMultiplier): 0.15% x 6 = exactly 0.9% for the
-        // Caspian, and a gentle 0.6% for 4x ships (which are already accurate -- a safe under-estimate
-        // margin). Applied to the display range and the Spansh optimal_mass so plotted hops don't
-        // exceed real max range. Tunable in one place.
-        public const double BoostModifier = 0.0015;
-        public static double BoostRangeFactor() => 1.0 + BoostModifier * NeutronBoostMultiplier;
+        // Conservative range trim. The Caspian Explorer's SCO Mk II drive makes our jump-range formula
+        // over-estimate by a flat ~0.9% (measured across boosted + unboosted: 82.1 vs 81.39, 492.7 vs
+        // 488.39 -- same percentage, a base-range error the neutron boost just scales linearly). NO
+        // other ship needs it -- e.g. the Panther Clipper calc lands within 0.06% of in-game (44.163 vs
+        // 44.19), and a blanket trim would push it wrongly low -- so the fixed 0.9% is applied ONLY to
+        // the Caspian. Used on the display range and the Spansh optimal_mass so plotted hops don't
+        // exceed real max range.
+        public const double CaspianRangeTrim = 0.009;
+        private const string CaspianShipType = "explorer_nx";
+        public static bool ShipNeedsRangeTrim =>
+            string.Equals(ShipType, CaspianShipType, StringComparison.OrdinalIgnoreCase);
+        public static double BoostRangeFactor() => ShipNeedsRangeTrim ? 1.0 + CaspianRangeTrim : 1.0;
         public static double FSDOptimalMass = 0.0;
         public static double FSDMaxFuelPerJump = 0.0;
         public static double FSDLinearConstant = 0.0;
@@ -465,8 +468,9 @@ namespace Elite
                 var totalMass = UnladenMass + fuel + StatusData.Cargo;
                 var fsdRange = FSDOptimalMass / totalMass
                     * Math.Pow(FSDMaxFuelPerJump / FSDLinearConstant, 1.0 / FSDPowerConstant);
-                // Conservative boost-scaled trim (see BoostModifier). Dividing the base here is
-                // equivalent to trimming the final boosted range, since /factor and x boost commute.
+                // Caspian-only conservative trim (see CaspianRangeTrim; 1.0 = no-op for other ships).
+                // Dividing the base here is equivalent to trimming the final boosted range, since
+                // /factor and x boost commute.
                 range = (fsdRange + GuardianFSDBonus) / BoostRangeFactor();
             }
             else
