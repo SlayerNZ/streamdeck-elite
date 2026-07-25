@@ -387,6 +387,7 @@ namespace Elite.Buttons
                 case "currentJumpNumber":   return "JUMP NBR";
                 case "totalJumps":          return "JUMPS TOT";
                 case "jumpsRemaining":      return "JUMPS LEFT";
+                case "jumpsToRefuel":       return "FUEL IN";
                 case "jumpSummary":         return "SUMMARY";
                 case "tripPercentage":      return "PROGRESS";
                 case "refuelAtTarget":      return "FUEL STOP";
@@ -414,6 +415,7 @@ namespace Elite.Buttons
                 case "currentJumpNumber":   return (snapshot.WaypointMax - snapshot.JumpRemaining).ToString();
                 case "totalJumps":          return snapshot.WaypointMax.ToString();
                 case "jumpsRemaining":      return snapshot.JumpRemaining.ToString();
+                case "jumpsToRefuel":       return snapshot.JumpsToRefuel > 0 ? $"{FuelIcon} {snapshot.JumpsToRefuel}" : string.Empty;
                 case "jumpSummary":         return snapshot.JumpSummary;
                 case "tripPercentage":      return $"{snapshot.JumpPercent:F1}%";
                 case "refuelAtTarget":      return FormatRefuel(snapshot);
@@ -490,6 +492,7 @@ namespace Elite.Buttons
             infoType == "destinationDistance" ||
             infoType == "currentJumpNumber"   ||
             infoType == "jumpsRemaining"      ||
+            infoType == "jumpsToRefuel"       ||
             infoType == "jumpSummary";
 
         private static Color ParseColor(string hex, Color fallback)

@@ -76,6 +76,11 @@ namespace Elite
         // straight line ignores the zig-zag neutron path. False when on-route or coords are unavailable.
         public bool IsOffRouteEstimate { get; set; }
         public int JumpsToRejoin { get; set; }
+
+        // Jumps from the player's current route position to the next waypoint flagged Refuel (a fuel
+        // stop the plotter picked). -1 = none ahead (or route/position unknown). Uses the same
+        // positionIndex anchor as JumpRemaining, so it tracks whichever route the button is showing.
+        public int JumpsToRefuel { get; set; } = -1;
     }
 
     public static class NeutronPlotRoute
@@ -543,6 +548,15 @@ namespace Elite
             return "OFF ROUTE";
         }
 
+        // Jumps from fromIndex to the next waypoint AHEAD flagged Refuel (strictly ahead, so sitting
+        // on a fuel star reports the next one). -1 when there's no refuel between here and the end.
+        private static int JumpsToNextRefuel(int fromIndex)
+        {
+            for (var i = fromIndex + 1; i < Waypoints.Count; i++)
+                if (Waypoints[i].IsRefuel) return i - fromIndex;
+            return -1;
+        }
+
         private static NeutronPlotSnapshot CreateSnapshot(string errorMessage)
         {
             var snapshot = new NeutronPlotSnapshot
@@ -642,6 +656,7 @@ namespace Elite
                 : Math.Max(0, state.WaypointTarget - 1);
             snapshot.JumpRemaining = Math.Max(0, snapshot.WaypointMax - positionIndex);
             snapshot.JumpSummary = $"{positionIndex}/{snapshot.WaypointMax}";
+            snapshot.JumpsToRefuel = JumpsToNextRefuel(positionIndex);
             var totalDistance = snapshot.DistanceTravelled + snapshot.DistanceDestination;
             snapshot.JumpPercent = totalDistance > 0
                 ? snapshot.DistanceTravelled / totalDistance * 100.0
