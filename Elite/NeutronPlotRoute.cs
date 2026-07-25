@@ -94,13 +94,6 @@ namespace Elite
         private const string ColRefuel = "Refuel";
         private const string ColNeutron = "Neutron Star";
 
-        // Conservative padding added to the ship's dry mass for Spansh plots, so planned hops keep a
-        // little headroom instead of sitting at the ragged edge of max range. 0.5% shaves ~0.5% off
-        // range — but on a neutron route the jet-cone boost amplifies that in absolute LY (~2.4 LY per
-        // ~470 LY hop on the 6x Caspian), which is enough to cover the ~0.4% formula optimism plus
-        // in-trip fuel/cargo swing without bloating the jump count.
-        private const double SpanshConservativeMassFraction = 0.005;
-
         // EDSM enrichment is written straight onto the waypoints (FuelStarLs / X,Y,Z) and persists
         // with the serialized route, so there is no separate cross-route cache. enrichInFlight just
         // dedupes concurrent lookups for the same system name while a fetch is running.
@@ -735,8 +728,11 @@ namespace Elite
                 ["refuel_every_scoopable"] = "0",
                 ["fuel_power"] = N(EliteData.FSDPowerConstant),
                 ["fuel_multiplier"] = N(EliteData.FSDLinearConstant),
-                ["optimal_mass"] = N(EliteData.FSDOptimalMass),
-                ["base_mass"] = N(EliteData.UnladenMass * (1.0 + SpanshConservativeMassFraction)),  // dry mass + conservative pad
+                // optimal_mass trimmed by the boost-scaled conservative factor: range scales linearly
+                // with it, so this shaves plotted max range ~1% (6x Caspian) / ~0.68% (4x) so hops
+                // don't exceed real range. Replaces the old flat base_mass pad. See EliteData.BoostModifier.
+                ["optimal_mass"] = N(EliteData.FSDOptimalMass / EliteData.BoostRangeFactor()),
+                ["base_mass"] = N(EliteData.UnladenMass),                 // fuel-excluded (= Coriolis dryMass)
                 ["tank_size"] = N(EliteData.FuelCapacityMain),
                 ["internal_tank_size"] = N(EliteData.FuelCapacityReserve),
                 ["reserve_size"] = "0",   // no extra main-tank buffer; plan with the full usable tank

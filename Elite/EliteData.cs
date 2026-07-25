@@ -22,6 +22,14 @@ namespace Elite
         // Almost all ships boost 4x; the Caspian Explorer's SCO Mk II drive boosts 6x. Seeded from a
         // ship-type default on ship change, then refined to the exact game-reported value by JetConeBoost.
         public static double NeutronBoostMultiplier = 4.0;
+
+        // Conservative range trim. Our jump-range formula slightly over-estimates on high-boost SCO
+        // drives (e.g. the 6x Caspian), and the neutron boost amplifies that error in absolute LY.
+        // We shave range by (BoostModifier x NeutronBoostMultiplier): ~1% for the 6x Caspian, ~0.68%
+        // for 4x ships (which barely need it, but it's harmless). Applied to the display range and to
+        // the Spansh optimal_mass so plotted hops don't exceed real max range. Tunable.
+        public const double BoostModifier = 0.0017;
+        public static double BoostRangeFactor() => 1.0 + BoostModifier * NeutronBoostMultiplier;
         public static double FSDOptimalMass = 0.0;
         public static double FSDMaxFuelPerJump = 0.0;
         public static double FSDLinearConstant = 0.0;
@@ -455,10 +463,13 @@ namespace Elite
                 var totalMass = UnladenMass + fuel + StatusData.Cargo;
                 var fsdRange = FSDOptimalMass / totalMass
                     * Math.Pow(FSDMaxFuelPerJump / FSDLinearConstant, 1.0 / FSDPowerConstant);
-                range = fsdRange + GuardianFSDBonus;
+                // Conservative boost-scaled trim (see BoostModifier). Dividing the base here is
+                // equivalent to trimming the final boosted range, since /factor and x boost commute.
+                range = (fsdRange + GuardianFSDBonus) / BoostRangeFactor();
             }
             else
             {
+                // Fallback is the game's own MaxJumpRange (accurate) — leave it untrimmed.
                 range = BaseJumpRange > 0 ? BaseJumpRange : LastJumpDistance;
             }
             return boosted && IsFsdBoosted ? range * BoostValue : range;
