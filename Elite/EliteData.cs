@@ -23,12 +23,14 @@ namespace Elite
         // ship-type default on ship change, then refined to the exact game-reported value by JetConeBoost.
         public static double NeutronBoostMultiplier = 4.0;
 
-        // Conservative range trim. Our jump-range formula slightly over-estimates on high-boost SCO
-        // drives (e.g. the 6x Caspian), and the neutron boost amplifies that error in absolute LY.
-        // We shave range by (BoostModifier x NeutronBoostMultiplier): ~1% for the 6x Caspian, ~0.68%
-        // for 4x ships (which barely need it, but it's harmless). Applied to the display range and to
-        // the Spansh optimal_mass so plotted hops don't exceed real max range. Tunable.
-        public const double BoostModifier = 0.0017;
+        // Conservative range trim. Our jump-range formula over-estimates by a flat ~0.9% on the SCO
+        // drive (measured: 82.1 vs 81.39 unboosted = 0.87%, 492.7 vs 488.39 boosted = 0.88% -- same
+        // percentage, because it's a base-range error the neutron boost just scales linearly).
+        // We shave range by (BoostModifier x NeutronBoostMultiplier): 0.15% x 6 = exactly 0.9% for the
+        // Caspian, and a gentle 0.6% for 4x ships (which are already accurate -- a safe under-estimate
+        // margin). Applied to the display range and the Spansh optimal_mass so plotted hops don't
+        // exceed real max range. Tunable in one place.
+        public const double BoostModifier = 0.0015;
         public static double BoostRangeFactor() => 1.0 + BoostModifier * NeutronBoostMultiplier;
         public static double FSDOptimalMass = 0.0;
         public static double FSDMaxFuelPerJump = 0.0;
