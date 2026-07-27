@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,minimal-ui,viewport-fit=cover">
+    <meta name=apple-mobile-web-app-capable content=yes>
+    <meta name=apple-mobile-web-app-status-bar-style content=black>
+    <title>Mhwlng's Elite</title>
+    <link rel="stylesheet" href="../sdpi.css">
+    <script src="../sdtools.common.js"></script>
+    <script src="../jquery-3.3.1.min.js"></script>
+</head>
+<body>
+<div class="sdpi-wrapper">
+
+    <div class="sdpi-item" id="select_single">
+        <div class="sdpi-item-label">Function</div>
+        <select class="sdpi-item-value select sdProperty" id="function" oninput="setSettings()">
+
+            <option value="">— Select a function —</option>
+
+            <optgroup label="Menu Navigation">
+                <option value="UI_Up">Up</option>
+                <option value="UI_Down">Down</option>
+                <option value="UI_Left">Left</option>
+                <option value="UI_Right">Right</option>
+                <option value="UI_Select">Select</option>
+                <option value="UI_Back">Back</option>
+                <option value="UI_Toggle">Toggle</option>
+                <option value="CycleNextPanel">Next Panel</option>
+                <option value="CyclePreviousPanel">Prev Panel</option>
+                <option value="CycleNextPage">Next Page (Tab)</option>
+                <option value="CyclePreviousPage">Prev Page (Tab)</option>
+            </optgroup>
+
+            <optgroup label="Panels — Ship">
+                <option value="UIFocus">UI Focus</option>
+                <option value="FocusLeftPanel">Nav Panel</option>
+                <option value="FocusRightPanel">Systems Panel</option>
+                <option value="FocusCommsPanel">Comms Panel</option>
+                <option value="FocusRadarPanel">Role Panel</option>
+            </optgroup>
+
+            <optgroup label="Panels — Ship (open only, never close)">
+                <option value="FocusLeftPanel-ON">Nav Panel On</option>
+                <option value="FocusRightPanel-ON">Systems Panel On</option>
+                <option value="FocusCommsPanel-ON">Comms Panel On</option>
+                <option value="FocusRadarPanel-ON">Role Panel On</option>
+            </optgroup>
+
+            <optgroup label="Panels — SRV">
+                <option value="UIFocus_Buggy">UI Focus (SRV)</option>
+                <option value="FocusLeftPanel_Buggy">Nav Panel (SRV)</option>
+                <option value="FocusRightPanel_Buggy">Systems Panel (SRV)</option>
+                <option value="FocusCommsPanel_Buggy">Comms Panel (SRV)</option>
+                <option value="FocusRadarPanel_Buggy">Role Panel (SRV)</option>
+            </optgroup>
+
+            <optgroup label="Maps">
+                <option value="GalaxyMapOpen">Galaxy Map</option>
+                <option value="SystemMapOpen">System Map</option>
+                <option value="GalaxyMapOpen-ON">Galaxy Map On</option>
+                <option value="SystemMapOpen-ON">System Map On</option>
+                <option value="GalaxyMapOpen_Buggy">Galaxy Map (SRV)</option>
+                <option value="SystemMapOpen_Buggy">System Map (SRV)</option>
+                <option value="GalaxyMapOpen_Humanoid">Galaxy Map (On Foot)</option>
+                <option value="SystemMapOpen_Humanoid">System Map (On Foot)</option>
+            </optgroup>
+
+            <optgroup label="Galaxy Map — Camera">
+                <option value="CamTranslateForward">Move Forward</option>
+                <option value="CamTranslateBackward">Move Backward</option>
+                <option value="CamTranslateLeft">Move Left</option>
+                <option value="CamTranslateRight">Move Right</option>
+                <option value="CamZoomIn">Zoom In</option>
+                <option value="CamZoomOut">Zoom Out</option>
+                <option value="CamPitchUp">Pitch Up</option>
+                <option value="CamPitchDown">Pitch Down</option>
+                <option value="CamYawLeft">Yaw Left</option>
+                <option value="CamYawRight">Yaw Right</option>
+            </optgroup>
+
+        </select>
+    </div>
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Presses</div>
+        <input class="sdpi-item-value sdProperty" type="number" id="presses" min="1" max="50" value="1" oninput="setSettings()">
+    </div>
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Interval (ms)</div>
+        <input class="sdpi-item-value sdProperty" type="number" id="intervalMs" min="0" max="2000" value="100" oninput="setSettings()">
+    </div>
+
+    <details class="message">
+        <summary>Sends the key you have bound in Elite, not a fixed key — so it still works if you or someone else remaps the controls. Repeats the chosen function <em>Presses</em> times, waiting <em>Interval</em> between each. Interval is ignored when Presses is 1.</summary>
+    </details>
+
+    <div class="sdpi-item" id="dvClickSound">
+        <div class="sdpi-item-label" onclick="clearFileName('clickSound');">Sound</div>
+        <div class="sdpi-item-group file" id="filepickergroup1">
+            <input class="sdpi-item-value sdProperty sdFile" type="file" id="clickSound" accept=".wav" oninput="setSettings()">
+            <label class="sdpi-file-info " for="clickSound" id="clickSoundFilename">No file...</label>
+            <label class="sdpi-file-label" for="clickSound">Choose file...</label>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

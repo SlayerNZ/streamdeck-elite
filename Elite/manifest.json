@@ -272,6 +272,21 @@
     },
     {
       "Icon": "Images/icon",
+      "Name": "UI Navigation Button",
+      "States": [
+        {
+          "Image": "Images/Default",
+          "TitleAlignment": "bottom",
+          "FontSize": "8"
+        }
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Elite Dangerous UI Navigation Button",
+      "UUID": "com.mhwlng.elite.uinavigation",
+      "PropertyInspectorPath": "PropertyInspector/Elite/UiNavigation.html"
+    },
+    {
+      "Icon": "Images/icon",
       "Name": "Repeating Static Button",
       "States": [
         {
@@ -426,7 +441,7 @@
   "Name": "Elite Dangerous",
   "Icon": "Images/pluginIcon",
   "URL": "https://github.com/SlayerNZ/streamdeck-elite",
-  "Version": "4.1.0.8",
+  "Version": "4.1.0.9",
   "CodePath": "com.mhwlng.elite",
   "Category": "Elite Dangerous",
   "CategoryIcon": "Images/categoryIcon",
