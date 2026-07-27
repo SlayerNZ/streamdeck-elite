@@ -85,6 +85,13 @@ namespace Elite
         public static Dictionary<string, (int BiologyCount, int GeologyCount)> SignalCache
             = new Dictionary<string, (int, int)>(StringComparer.OrdinalIgnoreCase);
 
+        // The body most recently resolved by FSSBodySignals / SAASignalsFound, and when.
+        // SignalCache records what was found but not when, so the Exploration Dial uses these
+        // to flash the counts for a body you have just resolved in the FSS before falling back
+        // to whichever body you are actually at.
+        public static string LastSignalBody = null;
+        public static DateTime LastSignalUtc = DateTime.MinValue;
+
         // ── Exobiology scan state ─────────────────────────────────────────────────
         // Shared across all ExoBiology button instances and written by Program.BackfillExoBiologyState
         // on startup so the button is populated immediately without waiting for the next scan event.
@@ -782,6 +789,8 @@ namespace Elite
                                 else if (sigType.Contains("Geological")) geo = sigCount;
                             }
                             EliteData.SignalCache[fssBody] = (bio, geo);
+                            EliteData.LastSignalBody = fssBody;
+                            EliteData.LastSignalUtc = DateTime.UtcNow;
                         }
                         break;
                     }

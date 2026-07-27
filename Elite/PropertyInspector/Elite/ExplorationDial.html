@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,minimal-ui,viewport-fit=cover">
+    <meta name=apple-mobile-web-app-capable content=yes>
+    <meta name=apple-mobile-web-app-status-bar-style content=black>
+    <title>Mhwlng's Elite</title>
+    <link rel="stylesheet" href="../sdpi.css">
+    <script src="../sdtools.common.js"></script>
+    <script src="../jquery-3.3.1.min.js"></script>
+</head>
+<body>
+<div class="sdpi-wrapper">
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Rotate Left</div>
+        <select class="sdpi-item-value select sdProperty" id="functionccw" oninput="setSettings()">
+            <option value="">— None —</option>
+            <optgroup label="FSS">
+                <option value="ExplorationFSSRadioTuningX_Decrease">Tune Left</option>
+                <option value="ExplorationFSSMiniZoomIn">Stepped Zoom In</option>
+                <option value="ExplorationFSSMiniZoomOut">Stepped Zoom Out</option>
+                <option value="ExplorationFSSZoomIn">Zoom In to Target</option>
+                <option value="ExplorationFSSZoomOut">Zoom Out</option>
+                <option value="ExplorationFSSCameraYawDecreaseButton">Camera Yaw Left</option>
+                <option value="ExplorationFSSCameraYawIncreaseButton">Camera Yaw Right</option>
+                <option value="ExplorationFSSCameraPitchDecreaseButton">Camera Pitch Down</option>
+                <option value="ExplorationFSSCameraPitchIncreaseButton">Camera Pitch Up</option>
+            </optgroup>
+            <optgroup label="DSS">
+                <option value="ExplorationSAAPreviousGenus">Prev Genus (Bio/Geo filter)</option>
+                <option value="ExplorationSAANextGenus">Next Genus (Bio/Geo filter)</option>
+            </optgroup>
+        </select>
+    </div>
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Rotate Right</div>
+        <select class="sdpi-item-value select sdProperty" id="functioncw" oninput="setSettings()">
+            <option value="">— None —</option>
+            <optgroup label="FSS">
+                <option value="ExplorationFSSRadioTuningX_Increase">Tune Right</option>
+                <option value="ExplorationFSSMiniZoomOut">Stepped Zoom Out</option>
+                <option value="ExplorationFSSMiniZoomIn">Stepped Zoom In</option>
+                <option value="ExplorationFSSZoomOut">Zoom Out</option>
+                <option value="ExplorationFSSZoomIn">Zoom In to Target</option>
+                <option value="ExplorationFSSCameraYawIncreaseButton">Camera Yaw Right</option>
+                <option value="ExplorationFSSCameraYawDecreaseButton">Camera Yaw Left</option>
+                <option value="ExplorationFSSCameraPitchIncreaseButton">Camera Pitch Up</option>
+                <option value="ExplorationFSSCameraPitchDecreaseButton">Camera Pitch Down</option>
+            </optgroup>
+            <optgroup label="DSS">
+                <option value="ExplorationSAANextGenus">Next Genus (Bio/Geo filter)</option>
+                <option value="ExplorationSAAPreviousGenus">Prev Genus (Bio/Geo filter)</option>
+            </optgroup>
+        </select>
+    </div>
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Dial Press</div>
+        <select class="sdpi-item-value select sdProperty" id="functionpress" oninput="setSettings()">
+            <option value="">— None —</option>
+            <optgroup label="FSS">
+                <option value="ExplorationFSSDiscoveryScan">Discovery Scan (honk)</option>
+                <option value="ExplorationFSSTarget">Target Current Signal</option>
+                <option value="ExplorationFSSEnter">Enter FSS</option>
+                <option value="ExplorationFSSQuit">Exit FSS</option>
+            </optgroup>
+            <optgroup label="DSS">
+                <option value="ExplorationSAAChangeScannedAreaViewToggle">Toggle Front/Back View</option>
+                <option value="ExplorationSAAExitThirdPerson">Exit DSS Third Person</option>
+            </optgroup>
+        </select>
+    </div>
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Touch Tap</div>
+        <select class="sdpi-item-value select sdProperty" id="functiontouchpress" oninput="setSettings()">
+            <option value="">— None —</option>
+            <optgroup label="FSS">
+                <option value="ExplorationFSSDiscoveryScan">Discovery Scan (honk)</option>
+                <option value="ExplorationFSSTarget">Target Current Signal</option>
+                <option value="ExplorationFSSEnter">Enter FSS</option>
+                <option value="ExplorationFSSQuit">Exit FSS</option>
+            </optgroup>
+            <optgroup label="DSS">
+                <option value="ExplorationSAAChangeScannedAreaViewToggle">Toggle Front/Back View</option>
+                <option value="ExplorationSAAExitThirdPerson">Exit DSS Third Person</option>
+            </optgroup>
+        </select>
+    </div>
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Touch Long Press</div>
+        <select class="sdpi-item-value select sdProperty" id="functiontouchlongpress" oninput="setSettings()">
+            <option value="">— None —</option>
+            <optgroup label="FSS">
+                <option value="ExplorationFSSQuit">Exit FSS</option>
+                <option value="ExplorationFSSDiscoveryScan">Discovery Scan (honk)</option>
+                <option value="ExplorationFSSTarget">Target Current Signal</option>
+                <option value="ExplorationFSSEnter">Enter FSS</option>
+            </optgroup>
+            <optgroup label="DSS">
+                <option value="ExplorationSAAExitThirdPerson">Exit DSS Third Person</option>
+                <option value="ExplorationSAAChangeScannedAreaViewToggle">Toggle Front/Back View</option>
+            </optgroup>
+        </select>
+    </div>
+
+    <details class="message">
+        <summary>Sends the keys you have bound in Elite, so it follows your own control setup. The touch strip shows bio and geo signal counts — for a body you have just resolved in the FSS (briefly), otherwise for the body you are currently at. A function bound only to a HOTAS or mouse cannot be sent; give it a keyboard binding as well.</summary>
+    </details>
+
+</div>
+</body>
+</html>
