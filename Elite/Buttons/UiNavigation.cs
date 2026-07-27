@@ -18,7 +18,7 @@ namespace Elite.Buttons
         // lock up the plugin thread for minutes.
         private const int DefaultPresses = 1;
         private const int MaxPresses = 50;
-        private const int DefaultIntervalMs = 100;
+        private const int DefaultIntervalMs = 50;
         private const int MaxIntervalMs = 2000;
 
         protected class PluginSettings
