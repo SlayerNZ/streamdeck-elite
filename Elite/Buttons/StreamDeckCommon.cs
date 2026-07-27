@@ -25,7 +25,9 @@ namespace Elite.Buttons
         public static bool ForceStop = false;
 
 
-        private static bool CheckProfileState(Profile.ProfileType profileType)
+        // internal rather than private: the UI Navigation button reuses this to gate
+        // a keypress on game state, so the same condition set backs both features.
+        internal static bool CheckProfileState(Profile.ProfileType profileType)
         {
             var state = false;
 

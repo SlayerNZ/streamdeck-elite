@@ -30,6 +30,7 @@ namespace Elite.Buttons
                     Function = string.Empty,
                     Presses = DefaultPresses.ToString(),
                     IntervalMs = DefaultIntervalMs.ToString(),
+                    Condition = string.Empty,
                     ClickSoundFilename = string.Empty
                 };
 
@@ -44,6 +45,9 @@ namespace Elite.Buttons
 
             [JsonProperty(PropertyName = "intervalMs")]
             public string IntervalMs { get; set; }
+
+            [JsonProperty(PropertyName = "condition")]
+            public string Condition { get; set; }
 
             [FilenameProperty]
             [JsonProperty(PropertyName = "clickSound")]
@@ -79,9 +83,32 @@ namespace Elite.Buttons
             return result;
         }
 
+        /// <summary>
+        /// True when the configured condition holds, or when no condition is set.
+        /// Fails closed: an unrecognised condition blocks the press rather than
+        /// letting a guarded button fire unguarded.
+        /// </summary>
+        private bool ConditionMet()
+        {
+            if (string.IsNullOrEmpty(settings.Condition)) return true;
+
+            if (!Enum.TryParse<Profile.ProfileType>(settings.Condition, out var profileType))
+            {
+                Logger.Instance.LogMessage(TracingLevel.WARN,
+                    $"UiNavigation: unknown condition '{settings.Condition}', blocking keypress");
+                return false;
+            }
+
+            return StreamDeckCommon.CheckProfileState(profileType);
+        }
+
         public override void KeyPressed(KeyPayload payload)
         {
             if (string.IsNullOrEmpty(settings.Function)) return;
+
+            // Checked once up front, not per press: a multi-press should not abort
+            // half way through because the state changed as a result of its own input.
+            if (!ConditionMet()) return;
 
             var presses = Clamp(settings.Presses, DefaultPresses, 1, MaxPresses);
             var interval = Clamp(settings.IntervalMs, DefaultIntervalMs, 0, MaxIntervalMs);

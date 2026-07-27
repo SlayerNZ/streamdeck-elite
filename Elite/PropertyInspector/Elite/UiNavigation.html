@@ -93,8 +93,109 @@
         <input class="sdpi-item-value sdProperty" type="number" id="intervalMs" min="0" max="2000" value="50" oninput="setSettings()">
     </div>
 
+    <div class="sdpi-item sdpi-heading">Advanced</div>
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Condition Check</div>
+        <select class="sdpi-item-value select sdProperty" id="condition" oninput="setSettings()">
+
+            <option value="">— No condition selected —</option>
+
+            <optgroup label="Vehicle">
+                <option value="InMainShip">In main ship</option>
+                <option value="InvInMainShip">Not in main ship</option>
+                <option value="InSRV">In SRV</option>
+                <option value="InvInSRV">Not in SRV</option>
+                <option value="OnFoot">On foot</option>
+                <option value="InvOnFoot">Not on foot</option>
+                <option value="InFighter">In fighter</option>
+                <option value="InvInFighter">Not in fighter</option>
+                <option value="InTaxi">In taxi</option>
+                <option value="InvInTaxi">Not in taxi</option>
+            </optgroup>
+
+            <optgroup label="Flight state">
+                <option value="Docked">Docked</option>
+                <option value="InvDocked">Not docked</option>
+                <option value="Landed">Landed</option>
+                <option value="InvLanded">Not landed</option>
+                <option value="Supercruise">In supercruise</option>
+                <option value="InvSupercruise">Not in supercruise</option>
+                <option value="HasLatLong">Near a planet (has lat/long)</option>
+                <option value="InvHasLatLong">Not near a planet</option>
+                <option value="GlideMode">Gliding</option>
+                <option value="FsdJump">FSD jumping</option>
+                <option value="InvFsdJump">Not FSD jumping</option>
+            </optgroup>
+
+            <optgroup label="Ship configuration">
+                <option value="Hardpoints">Hardpoints deployed</option>
+                <option value="InvHardpoints">Hardpoints retracted</option>
+                <option value="LandingGearDown">Landing gear down</option>
+                <option value="InvLandingGearDown">Landing gear up</option>
+                <option value="CargoScoop">Cargo scoop open</option>
+                <option value="InvCargoScoop">Cargo scoop closed</option>
+                <option value="ShieldsUp">Shields up</option>
+                <option value="InvShieldsUp">Shields down</option>
+                <option value="LightsOn">Lights on</option>
+                <option value="InvLightsOn">Lights off</option>
+                <option value="NightVision">Night vision on</option>
+                <option value="InvNightVision">Night vision off</option>
+                <option value="SilentRunning">Silent running on</option>
+                <option value="InvSilentRunning">Silent running off</option>
+                <option value="FlightAssistOff">Flight assist off</option>
+                <option value="InvFlightAssistOff">Flight assist on</option>
+                <option value="AnalysisMode">Analysis mode</option>
+                <option value="InvAnalysisMode">Combat mode</option>
+            </optgroup>
+
+            <optgroup label="Interface focus">
+                <option value="ExternalPanel">Nav panel open (left)</option>
+                <option value="InvExternalPanel">Nav panel closed</option>
+                <option value="InternalPanel">Systems panel open (right)</option>
+                <option value="InvInternalPanel">Systems panel closed</option>
+                <option value="CommsPanel">Comms panel open</option>
+                <option value="InvCommsPanel">Comms panel closed</option>
+                <option value="RolePanel">Role panel open</option>
+                <option value="InvRolePanel">Role panel closed</option>
+                <option value="GalaxyMap">Galaxy map open</option>
+                <option value="InvGalaxyMap">Galaxy map closed</option>
+                <option value="SystemMap">System map open</option>
+                <option value="InvSystemMap">System map closed</option>
+                <option value="Orrery">Orrery open</option>
+                <option value="FSSMode">FSS open</option>
+                <option value="InvFSSMode">FSS closed</option>
+                <option value="SAAMode">DSS open</option>
+                <option value="InvSAAMode">DSS closed</option>
+            </optgroup>
+
+            <optgroup label="Hazards">
+                <option value="IsInDanger">In danger</option>
+                <option value="InvIsInDanger">Not in danger</option>
+                <option value="BeingInterdicted">Being interdicted</option>
+                <option value="LowFuel">Low fuel</option>
+                <option value="InvLowFuel">Fuel not low</option>
+                <option value="Overheating">Overheating</option>
+                <option value="ScoopingFuel">Scooping fuel</option>
+                <option value="InvScoopingFuel">Not scooping fuel</option>
+                <option value="FsdMassLocked">FSD mass locked</option>
+                <option value="FsdCharging">FSD charging</option>
+                <option value="FsdCooldown">FSD on cooldown</option>
+                <option value="InvFsdCooldown">FSD not on cooldown</option>
+            </optgroup>
+
+            <optgroup label="Crew">
+                <option value="InWing">In a wing</option>
+                <option value="InvInWing">Not in a wing</option>
+                <option value="InMulticrew">In multicrew</option>
+                <option value="InvInMulticrew">Not in multicrew</option>
+            </optgroup>
+
+        </select>
+    </div>
+
     <details class="message">
-        <summary>Sends the key you have bound in Elite, not a fixed key — so it still works if you or someone else remaps the controls. Repeats the chosen function <em>Presses</em> times, waiting <em>Interval</em> between each. Interval is ignored when Presses is 1.</summary>
+        <summary>The Advanced option checks a condition before the button does anything. If the condition is not true, the button does nothing — so a step placed in a multi-action stays silent rather than firing at the wrong moment.</summary>
     </details>
 
     <div class="sdpi-item" id="dvClickSound">
