@@ -64,8 +64,8 @@
             <optgroup label="FSS">
                 <option value="ExplorationFSSDiscoveryScan">Discovery Scan (honk)</option>
                 <option value="ExplorationFSSTarget">Target Current Signal</option>
-                <option value="ExplorationFSSEnter">Enter FSS</option>
-                <option value="ExplorationFSSQuit">Exit FSS</option>
+                <option value="ExplorationFSSEnter">Enter FSS (may be a toggle)</option>
+                <option value="ExplorationFSSQuit">Exit FSS (may be a toggle)</option>
             </optgroup>
             <optgroup label="DSS">
                 <option value="ExplorationSAAChangeScannedAreaViewToggle">Toggle Front/Back View</option>
@@ -81,8 +81,8 @@
             <optgroup label="FSS">
                 <option value="ExplorationFSSDiscoveryScan">Discovery Scan (honk)</option>
                 <option value="ExplorationFSSTarget">Target Current Signal</option>
-                <option value="ExplorationFSSEnter">Enter FSS</option>
-                <option value="ExplorationFSSQuit">Exit FSS</option>
+                <option value="ExplorationFSSEnter">Enter FSS (may be a toggle)</option>
+                <option value="ExplorationFSSQuit">Exit FSS (may be a toggle)</option>
             </optgroup>
             <optgroup label="DSS">
                 <option value="ExplorationSAAChangeScannedAreaViewToggle">Toggle Front/Back View</option>
@@ -96,10 +96,10 @@
         <select class="sdpi-item-value select sdProperty" id="functiontouchlongpress" oninput="setSettings()">
             <option value="">— None —</option>
             <optgroup label="FSS">
-                <option value="ExplorationFSSQuit">Exit FSS</option>
+                <option value="ExplorationFSSQuit">Exit FSS (may be a toggle)</option>
                 <option value="ExplorationFSSDiscoveryScan">Discovery Scan (honk)</option>
                 <option value="ExplorationFSSTarget">Target Current Signal</option>
-                <option value="ExplorationFSSEnter">Enter FSS</option>
+                <option value="ExplorationFSSEnter">Enter FSS (may be a toggle)</option>
             </optgroup>
             <optgroup label="DSS">
                 <option value="ExplorationSAAExitThirdPerson">Exit DSS Third Person</option>
@@ -108,8 +108,21 @@
         </select>
     </div>
 
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Touch Hold (ms)</div>
+        <input class="sdpi-item-value sdProperty" type="number" id="holdms" min="0" max="5000" value="0" oninput="setSettings()">
+    </div>
+
     <details class="message">
         <summary>Sends the keys you have bound in Elite, so it follows your own control setup. The touch strip shows bio and geo signal counts — for a body you have just resolved in the FSS (briefly), otherwise for the body you are currently at. A function bound only to a HOTAS or mouse cannot be sent; give it a keyboard binding as well.</summary>
+    </details>
+
+    <details class="message">
+        <summary><b>Actions that charge while held</b>, such as the Discovery Scan, need the key held down rather than tapped. The <b>dial press</b> already does this — it holds for as long as you hold the encoder. A <b>touch</b> has no release to wait for, so set <b>Touch Hold</b> to how long the key should be held (try 1000&nbsp;ms for a Discovery Scan). Leave it at 0 for normal one-shot actions.</summary>
+    </details>
+
+    <details class="message">
+        <summary><b>Enter and Exit FSS</b> are often bound to the same key, in which case that key is a toggle and picking either entry does the same thing. Assign it once rather than to two separate slots.</summary>
     </details>
 
 </div>

@@ -23,6 +23,13 @@ namespace Elite.Buttons
         private const int MaxTicksPerRotate = 10;
         private const int TickIntervalMs = 40;
 
+        // Some FSS actions charge while the key is held rather than firing on a tap - the
+        // Discovery Scan (honk) is the obvious one. The dial press holds for as long as you
+        // hold it, but a touch tap is a single event with no release to follow, so the touch
+        // slots hold the key for this long instead.
+        private const int DefaultHoldMs = 0;
+        private const int MaxHoldMs = 5000;
+
         protected class PluginSettings
         {
             public static PluginSettings CreateDefaultSettings()
@@ -33,7 +40,8 @@ namespace Elite.Buttons
                     FunctionCw = string.Empty,
                     FunctionPress = string.Empty,
                     FunctionTouchPress = string.Empty,
-                    FunctionTouchLongPress = string.Empty
+                    FunctionTouchLongPress = string.Empty,
+                    HoldMs = DefaultHoldMs.ToString()
                 };
             }
 
@@ -51,6 +59,9 @@ namespace Elite.Buttons
 
             [JsonProperty(PropertyName = "functiontouchlongpress")]
             public string FunctionTouchLongPress { get; set; }
+
+            [JsonProperty(PropertyName = "holdms")]
+            public string HoldMs { get; set; }
         }
 
         private PluginSettings settings;
@@ -68,6 +79,16 @@ namespace Elite.Buttons
             {
                 settings = payload.Settings.ToObject<PluginSettings>();
             }
+        }
+
+        private static int Clamp(string value, int fallback, int min, int max)
+        {
+            if (!int.TryParse(value, out var result)) result = fallback;
+
+            if (result < min) result = min;
+            if (result > max) result = max;
+
+            return result;
         }
 
         /// <summary>
@@ -191,13 +212,17 @@ namespace Elite.Buttons
 
             StreamDeckCommon.ForceStop = false;
 
-            EliteKeys.SendKeypress(settings.FunctionPress);
+            // Held, not tapped: the Discovery Scan charges while its key is down, so the dial
+            // press has to mirror how long you actually hold the encoder. Discrete actions are
+            // unaffected - a quick press is still a quick press.
+            EliteKeys.SendKeypressDown(settings.FunctionPress);
         }
 
-        // Press is sent complete on DialDown, so there is nothing to do on release.
-        // Required override - EncoderBase declares it abstract.
         public override void DialUp(DialPayload payload)
         {
+            if (Program.Binding == null) return;
+
+            EliteKeys.SendKeypressUp(settings.FunctionPress);
         }
 
         public override void TouchPress(TouchpadPressPayload payload)
@@ -210,9 +235,24 @@ namespace Elite.Buttons
 
             StreamDeckCommon.ForceStop = false;
 
-            EliteKeys.SendKeypress(payload.IsLongPress
+            var function = payload.IsLongPress
                 ? settings.FunctionTouchLongPress
-                : settings.FunctionTouchPress);
+                : settings.FunctionTouchPress;
+
+            if (string.IsNullOrEmpty(function)) return;
+
+            var hold = Clamp(settings.HoldMs, DefaultHoldMs, 0, MaxHoldMs);
+
+            if (hold <= 0)
+            {
+                EliteKeys.SendKeypress(function);
+                return;
+            }
+
+            // A touch is one event with no release to wait for, so synthesise the hold.
+            EliteKeys.SendKeypressDown(function);
+            Thread.Sleep(hold);
+            EliteKeys.SendKeypressUp(function);
         }
 
         public override void ReceivedSettings(ReceivedSettingsPayload payload)
