@@ -743,10 +743,10 @@ namespace Elite
                 ["refuel_every_scoopable"] = "0",
                 ["fuel_power"] = N(EliteData.FSDPowerConstant),
                 ["fuel_multiplier"] = N(EliteData.FSDLinearConstant),
-                // optimal_mass trimmed by the conservative range factor (Caspian-only 0.9%; 1.0 no-op
-                // for other ships): range scales linearly with it, so this shaves the plotted max range
-                // by the same amount so hops don't exceed real range. See EliteData.CaspianRangeTrim.
-                ["optimal_mass"] = N(EliteData.FSDOptimalMass / EliteData.BoostRangeFactor()),
+                // Sent untrimmed. The old Caspian range trim was removed once the real cause was
+                // found (the SCO Mk II power constant); Spansh derives range from these same
+                // figures, so it now agrees with the display without a fudge factor.
+                ["optimal_mass"] = N(EliteData.FSDOptimalMass),
                 ["base_mass"] = N(EliteData.UnladenMass),                 // fuel-excluded (= Coriolis dryMass)
                 ["tank_size"] = N(EliteData.FuelCapacityMain),
                 ["internal_tank_size"] = N(EliteData.FuelCapacityReserve),
