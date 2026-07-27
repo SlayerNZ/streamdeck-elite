@@ -15,7 +15,7 @@ This release upgrades the plugin's underlying `EliteJournalReader` library (the 
 
 ---
 
-## New & Update Features (v4.1.0.2)
+## New & Update Features (v4.1.0)
 
 ### 🚀 🆕 (NEW) Neutron Plot Route
 
@@ -58,6 +58,7 @@ Three display styles to suit your layout:
 | Jump Summary | jumps completed / total (e.g. `12/52`) |
 | Trip Percentage | distance-based progress % |
 | Refuel at Target | nearest scoopable star + distance (`⛽`, green under 50 Ls) |
+| Jumps to Refuel | how many hops until the next refuel waypoint (`⛽` + count) |
 | Neutron at Target | flags a neutron supercharge star |
 | Jump Range | your live laden jump range (shows the neutron boost when supercharged) |
 | Fuel (Main Tank) | current fuel tonnage |
@@ -68,6 +69,8 @@ Each row has its own colour, and a configurable **Boost Color** highlights the J
 > **NOTE:** Spansh can only plot to systems it already knows about. If you target an unvisited deep-space system the button will say `DEST UNKNOWN` — target a known or previously-visited waypoint instead.
 
 Fixed bug:  The Neutron Boost multiplier was accidentally hardcoded to 4x, which didn't work with the Caspian Explorer.  It's now dynamically generated from the journals so the Spansh plotter can accurately calculate your most efficient route.
+
+Fixed bug:  Routes plotted for the **Caspian Explorer** could land just beyond the ship's real reach, leaving you unable to make a jump the route said was fine. A small conservative trim is now applied to the Caspian's range before plotting, so hops stay inside what the ship can actually do. Other ships are unaffected.
 
 📖 **Full walkthrough:** see the [Neutron Plot User Guide](Elite/NeutronPlotGuide.md).
 
@@ -99,6 +102,46 @@ It's a two-row, labelled display purpose-built for everyday A-to-B travel and re
 | Est. Jumps in Tank | how many jumps your current fuel will last |
 
 Each row has its own colour, plus a **Boost Color** for the Jump Range.
+
+---
+
+### 🎛️ 🆕 (NEW) UI Navigation Button
+
+Building a macro to request docking, deploy an SRV or disembark usually means chaining raw key presses — `W` for up, `S` for down, `Space` to select. That works right up until you remap something, or hand the macro to a friend who has. Then it quietly does the wrong thing.
+
+The **UI Navigation Button** sends **the key *you* have bound in Elite**, looked up live from your own binds file. Remap your controls and the button follows. Share a multi-action with someone whose layout is nothing like yours and it still does the right thing on their machine. It reads whichever preset you actually have loaded, handles non-US keyboard layouts, and picks up changes the moment you save them in-game — no restart.
+
+It's built for multi-actions: chain a handful of these to drive any in-game menu.
+
+**Settings:**
+
+| Setting | Does |
+|---|---|
+| **Function** | the menu, panel or map action to send |
+| **Presses** | send it more than once — `Down` ×3 in a single action instead of three |
+| **Interval (ms)** | pause between repeats, so the menu can keep up (default 50) |
+| **Condition Check** | *(Advanced)* only act when the game is in a particular state |
+| **Sound** | optional `.wav` on press |
+
+**Functions available:**
+
+| Group | Includes |
+|---|---|
+| Menu Navigation | Up · Down · Left · Right · Select · Back · Toggle · Next/Prev Panel · Next/Prev Page |
+| Panels — Ship | UI Focus · Nav · Systems · Comms · Role, plus "open only" variants that won't close a panel that's already up |
+| Panels — SRV | the SRV equivalents, which are separately bindable in Elite |
+| Maps | Galaxy Map · System Map — ship, SRV and on-foot variants |
+| Galaxy Map Camera | move · zoom · pitch · yaw |
+
+**Condition Check — stop a macro firing at the wrong moment.**
+
+Set a condition and the button does nothing unless it's true. Put `In main ship` on every step of a Deploy SRV macro and pressing it on foot is simply ignored, instead of firing menu keys into whatever happens to be on screen.
+
+There are **78 conditions**, each available in both directions (`Docked` / `Not docked`), grouped as **Vehicle**, **Flight state**, **Ship configuration**, **Interface focus**, **Hazards** and **Crew**.
+
+> **NOTE:** Stream Deck gives a plugin no way to *cancel* the remaining steps of a multi-action. The condition doesn't stop the macro — it makes each guarded step do nothing, so the macro runs harmlessly to the end. Put the same condition on every step.
+
+> **NOTE:** If a function isn't bound to your keyboard at all, there's no key to send and nothing happens. Elite lets you bind most of these to a HOTAS instead — if a step seems to do nothing, check it has a keyboard binding (primary *or* secondary).
 
 ---
 ## New & Updated Features (v4.0.0)
