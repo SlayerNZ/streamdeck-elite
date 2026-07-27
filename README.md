@@ -1,6 +1,6 @@
 # streamdeck-elite
 
-This is a custom fork of [mhwlng's original project](https://github.com/mhwlng/streamdeck-elite), [DrFr33ze's .NET 10 conversion](https://github.com/DrFr33ze/streamdeck-elite) and [macrossmerrell's enhancements around exploration](https://github.com/macrossmerrell/streamdeck-elite). They are the amazing people that did all of the hard work. My meager contribution is a small step beyond their efforts. 
+This is a custom fork of [mhwlng's original project](https://github.com/mhwlng/streamdeck-elite), [DrFr33ze's .NET 10 conversion](https://github.com/DrFr33ze/streamdeck-elite) and [macrossmerrell's enhancements around exploration](https://github.com/macrossmerrell/streamdeck-elite), with Automatic Profile Switching instructions by CMDR Galyock. They are the amazing people that did all of the hard work. My meager contribution is a small step beyond their efforts. 
 Like macrossmerrell, I'm an explorer.  I needed to make neutron highway plots and long journeys a bit easier to monitor. I added functionality to make my own experience in Elite Dangerous more satisfying.  Hopefully you will like them too.
 
 **Ensure .NET 10 Desktop Runtime is installed** for proper operation: https://dotnet.microsoft.com/en-us/download/dotnet/10.0
@@ -466,14 +466,17 @@ A set of custom button images is included in the `Images/Optional` directory, cr
 
 The plugin supports automatic Stream Deck profile switching based on game state. To set this up:
 
-1. Create profiles in the Stream Deck software with these exact names:
-   - `Elite Main` — default ship profile
-   - `Elite OnFoot` — switches when on foot in Odyssey
-   - `Elite InSRV` — switches when SRV is deployed
-   - `Elite InFighter` — switches when in a fighter
-2. Export each profile from Stream Deck software as a `.streamDeckProfile` file
-3. Place the exported files in the `Profiles` folder inside the plugin directory
-4. Reinstall the plugin — Stream Deck will prompt to import the profiles
+### Follow the detailed instructions from CMDR Galyock: [Automatic Profile Switching Setup](Automatic%20Profile%20Switching%20Instructions.md).
+
+Ignore These Older Instructions:
+~~Create profiles in the Stream Deck software with these exact names:
+`Elite Main` — default ship profile
+`Elite OnFoot` — switches when on foot in Odyssey
+`Elite InSRV` — switches when SRV is deployed
+`Elite InFighter` — switches when in a fighter
+Export each profile from Stream Deck software as a `.streamDeckProfile` file
+Place the exported files in the `Profiles` folder inside the plugin directory
+Reinstall the plugin — Stream Deck will prompt to import the profiles~~
 
 > **Note:** Profile files are device-specific and tied to your hardware UUID. They cannot be shared universally, which is why this folder ships empty. This is an advanced setup for users who want it.
 
