@@ -23,12 +23,12 @@ namespace Elite.Buttons
         // still get exactly one step (fine control near a signal), spin fast and each detent is
         // worth progressively more, up to the configured maximum.
         //
-        // Speed is measured as the gap between DialRotate events. At or above SlowGapMs the
-        // multiplier is 1; at or below FastGapMs it is the maximum; in between it interpolates.
+        // Speed is measured as ticks per DialRotate event (see StepsFor). NoGapMs is only the
+        // placeholder used for the first rotation, where there is no previous event to compare
+        // against; the gap itself is logged as a diagnostic and no longer affects behaviour.
         private const int DefaultMaxSteps = 1;      // 1 = acceleration off, original behaviour
         private const int MaxMaxSteps = 60;
-        private const double SlowGapMs = 200.0;
-        private const double FastGapMs = 40.0;
+        private const double NoGapMs = 0.0;
 
         // Ticks per rotate event at which the multiplier is considered maxed out. Stream Deck
         // batches detents when spinning quickly, so this is the primary speed signal.
@@ -231,12 +231,16 @@ namespace Elite.Buttons
         /// the configured maximum as the spin gets faster.
         /// </summary>
         /// <remarks>
-        /// Speed is judged two ways because Stream Deck reports fast rotation by BATCHING detents
-        /// into one event with a higher Ticks count, not by sending events more often. Judging on
-        /// the inter-event gap alone therefore barely moved off 1x however hard the dial was spun.
-        /// Ticks-per-event is the more reliable signal; the gap is kept as a secondary so a steady
-        /// fast turn that arrives as a stream of single ticks still accelerates. Whichever reads
-        /// faster wins.
+        /// Speed is judged purely on ticks-per-event, because Stream Deck reports a fast spin by
+        /// BATCHING detents into one event with a higher Ticks count rather than sending events
+        /// more often.
+        ///
+        /// An inter-event gap measure was tried and removed: in-game telemetry showed a slow,
+        /// deliberate turn produces single-tick events 120-190ms apart, which any sensible gap
+        /// threshold reads as "fast". The same one-click turn was landing on 1 step sometimes and
+        /// 10 others, destroying the fine control this is supposed to preserve. Ticks alone are
+        /// clean - 1 when turning slowly, 2-4 when sweeping. The gap is still logged, as a
+        /// diagnostic only.
         /// </remarks>
         private int StepsFor(int ticks)
         {
@@ -244,7 +248,7 @@ namespace Elite.Buttons
 
             var now = DateTime.UtcNow;
             var gapMs = _lastRotateUtc == DateTime.MinValue
-                ? SlowGapMs
+                ? NoGapMs
                 : (now - _lastRotateUtc).TotalMilliseconds;
             _lastRotateUtc = now;
 
@@ -257,21 +261,15 @@ namespace Elite.Buttons
                 return ticks;
             }
 
-            double byGap;
-            if (gapMs >= SlowGapMs) byGap = 1.0;
-            else if (gapMs <= FastGapMs) byGap = max;
-            else byGap = 1.0 + (max - 1.0) * (SlowGapMs - gapMs) / (SlowGapMs - FastGapMs);
+            double multiplier;
+            if (ticks <= 1) multiplier = 1.0;
+            else if (ticks >= FastTicks) multiplier = max;
+            else multiplier = 1.0 + (max - 1.0) * (ticks - 1.0) / (FastTicks - 1.0);
 
-            double byTicks;
-            if (ticks <= 1) byTicks = 1.0;
-            else if (ticks >= FastTicks) byTicks = max;
-            else byTicks = 1.0 + (max - 1.0) * (ticks - 1.0) / (FastTicks - 1.0);
-
-            var multiplier = Math.Max(byGap, byTicks);
             var steps = (int)Math.Round(ticks * multiplier);
 
             Logger.Instance.LogMessage(TracingLevel.DEBUG,
-                $"ExplorationDial rotate: ticks={ticks} gap={gapMs:F0}ms byGap={byGap:F1} byTicks={byTicks:F1} steps={steps}");
+                $"ExplorationDial rotate: ticks={ticks} gap={gapMs:F0}ms mult={multiplier:F1} steps={steps}");
 
             return steps;
         }
