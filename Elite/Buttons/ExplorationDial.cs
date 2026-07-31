@@ -102,6 +102,26 @@ namespace Elite.Buttons
             else
             {
                 settings = payload.Settings.ToObject<PluginSettings>();
+                BackfillDefaults();
+            }
+        }
+
+        /// <summary>
+        /// A button placed before a setting existed has no key for it, so it deserialises as null
+        /// and silently behaves as whatever the clamp floor happens to be - which is how
+        /// acceleration shipped switched off for every dial placed before 4.2.0.4. Fill the gaps
+        /// and write them back so older buttons heal themselves on load.
+        /// </summary>
+        private void BackfillDefaults()
+        {
+            var changed = false;
+
+            if (string.IsNullOrEmpty(settings.MaxSteps)) { settings.MaxSteps = DefaultMaxSteps.ToString(); changed = true; }
+            if (string.IsNullOrEmpty(settings.HoldMs)) { settings.HoldMs = DefaultHoldMs.ToString(); changed = true; }
+
+            if (changed)
+            {
+                Connection.SetSettingsAsync(JObject.FromObject(settings)).Wait();
             }
         }
 
@@ -228,7 +248,14 @@ namespace Elite.Buttons
                 : (now - _lastRotateUtc).TotalMilliseconds;
             _lastRotateUtc = now;
 
-            if (max <= 1) return ticks;
+            if (max <= 1)
+            {
+                // Logged before the early return, so "acceleration is off" is visible in the log
+                // rather than being an absence of evidence.
+                Logger.Instance.LogMessage(TracingLevel.DEBUG,
+                    $"ExplorationDial rotate: ticks={ticks} maxSteps={max} (acceleration off) steps={ticks}");
+                return ticks;
+            }
 
             double byGap;
             if (gapMs >= SlowGapMs) byGap = 1.0;
