@@ -23,10 +23,6 @@
                 <option value="ExplorationFSSMiniZoomOut">Stepped Zoom Out</option>
                 <option value="ExplorationFSSZoomIn">Zoom In to Target</option>
                 <option value="ExplorationFSSZoomOut">Zoom Out</option>
-                <option value="ExplorationFSSCameraYawDecreaseButton">Camera Yaw Left</option>
-                <option value="ExplorationFSSCameraYawIncreaseButton">Camera Yaw Right</option>
-                <option value="ExplorationFSSCameraPitchDecreaseButton">Camera Pitch Down</option>
-                <option value="ExplorationFSSCameraPitchIncreaseButton">Camera Pitch Up</option>
             </optgroup>
             <optgroup label="DSS">
                 <option value="ExplorationSAAPreviousGenus">Prev Genus (Bio/Geo filter)</option>
@@ -45,10 +41,6 @@
                 <option value="ExplorationFSSMiniZoomIn">Stepped Zoom In</option>
                 <option value="ExplorationFSSZoomOut">Zoom Out</option>
                 <option value="ExplorationFSSZoomIn">Zoom In to Target</option>
-                <option value="ExplorationFSSCameraYawIncreaseButton">Camera Yaw Right</option>
-                <option value="ExplorationFSSCameraYawDecreaseButton">Camera Yaw Left</option>
-                <option value="ExplorationFSSCameraPitchIncreaseButton">Camera Pitch Up</option>
-                <option value="ExplorationFSSCameraPitchDecreaseButton">Camera Pitch Down</option>
             </optgroup>
             <optgroup label="DSS">
                 <option value="ExplorationSAANextGenus">Next Genus (Bio/Geo filter)</option>
@@ -109,9 +101,18 @@
     </div>
 
     <div class="sdpi-item">
+        <div class="sdpi-item-label">Max Steps / Detent</div>
+        <input class="sdpi-item-value sdProperty" type="number" id="maxsteps" min="1" max="20" value="1" oninput="setSettings()">
+    </div>
+
+    <div class="sdpi-item">
         <div class="sdpi-item-label">Touch Hold (ms)</div>
         <input class="sdpi-item-value sdProperty" type="number" id="holdms" min="0" max="5000" value="0" oninput="setSettings()">
     </div>
+
+    <details class="message">
+        <summary><b>Max Steps / Detent</b> makes the dial accelerate. Turn slowly and every click is worth exactly one step, so you keep fine control near a signal; spin quickly and each click is worth progressively more, up to this maximum. FSS tuning moves in small increments, so <b>8&#8209;12</b> makes sweeping the band practical. Leave it at 1 to disable acceleration.</summary>
+    </details>
 
     <details class="message">
         <summary>Sends the keys you have bound in Elite, so it follows your own control setup. The touch strip shows bio and geo signal counts — for a body you have just resolved in the FSS (briefly), otherwise for the body you are currently at. A function bound only to a HOTAS or mouse cannot be sent; give it a keyboard binding as well.</summary>

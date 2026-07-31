@@ -18,10 +18,22 @@ namespace Elite.Buttons
         // display falls back to whatever body you are actually at.
         private const int FssFlashMs = 5000;
 
-        // A fast spin arrives as one payload with several ticks. Cap it so a flick of
-        // the encoder cannot queue a long blocking run of keypresses.
-        private const int MaxTicksPerRotate = 10;
-        private const int TickIntervalMs = 40;
+        // FSS tuning moves one small step per keypress, so one step per detent is unusably slow
+        // to sweep the band with. "Max steps per detent" adds acceleration: turn slowly and you
+        // still get exactly one step (fine control near a signal), spin fast and each detent is
+        // worth progressively more, up to the configured maximum.
+        //
+        // Speed is measured as the gap between DialRotate events. At or above SlowGapMs the
+        // multiplier is 1; at or below FastGapMs it is the maximum; in between it interpolates.
+        private const int DefaultMaxSteps = 1;      // 1 = acceleration off, original behaviour
+        private const int MaxMaxSteps = 20;
+        private const double SlowGapMs = 200.0;
+        private const double FastGapMs = 40.0;
+
+        // 20ms between synthetic presses is proven good in game (tested on the UI Navigation
+        // button). The per-event cap stops a hard flick queueing a long blocking run.
+        private const int TickIntervalMs = 20;
+        private const int MaxStepsPerEvent = 30;
 
         // Some FSS actions charge while the key is held rather than firing on a tap - the
         // Discovery Scan (honk) is the obvious one. The dial press holds for as long as you
@@ -41,7 +53,8 @@ namespace Elite.Buttons
                     FunctionPress = string.Empty,
                     FunctionTouchPress = string.Empty,
                     FunctionTouchLongPress = string.Empty,
-                    HoldMs = DefaultHoldMs.ToString()
+                    HoldMs = DefaultHoldMs.ToString(),
+                    MaxSteps = DefaultMaxSteps.ToString()
                 };
             }
 
@@ -62,11 +75,15 @@ namespace Elite.Buttons
 
             [JsonProperty(PropertyName = "holdms")]
             public string HoldMs { get; set; }
+
+            [JsonProperty(PropertyName = "maxsteps")]
+            public string MaxSteps { get; set; }
         }
 
         private PluginSettings settings;
         private string _lastTitle = null;
         private string _lastValue = null;
+        private DateTime _lastRotateUtc = DateTime.MinValue;
 
         public ExplorationDial(SDConnection connection, InitialPayload payload) : base(connection, payload)
         {
@@ -167,19 +184,43 @@ namespace Elite.Buttons
         /// you turn. Everything here - tuning, stepped zoom, genus - is a stepped control, and
         /// holding would either overshoot or run away on key auto-repeat.
         /// </summary>
-        private static void SendSteps(string function, int ticks)
+        private static void SendSteps(string function, int steps)
         {
             if (string.IsNullOrEmpty(function)) return;
 
-            if (ticks < 1) ticks = 1;
-            if (ticks > MaxTicksPerRotate) ticks = MaxTicksPerRotate;
+            if (steps < 1) steps = 1;
+            if (steps > MaxStepsPerEvent) steps = MaxStepsPerEvent;
 
-            for (var i = 0; i < ticks; i++)
+            for (var i = 0; i < steps; i++)
             {
                 if (i > 0) Thread.Sleep(TickIntervalMs);
 
                 EliteKeys.SendKeypress(function);
             }
+        }
+
+        /// <summary>
+        /// Steps to send for this rotation. One per detent when turning slowly, scaling up to
+        /// the configured maximum as the gap between rotate events shrinks.
+        /// </summary>
+        private int StepsFor(int ticks)
+        {
+            var max = Clamp(settings.MaxSteps, DefaultMaxSteps, 1, MaxMaxSteps);
+
+            var now = DateTime.UtcNow;
+            var gapMs = _lastRotateUtc == DateTime.MinValue
+                ? SlowGapMs
+                : (now - _lastRotateUtc).TotalMilliseconds;
+            _lastRotateUtc = now;
+
+            if (max <= 1) return ticks;
+
+            double multiplier;
+            if (gapMs >= SlowGapMs) multiplier = 1.0;
+            else if (gapMs <= FastGapMs) multiplier = max;
+            else multiplier = 1.0 + (max - 1.0) * (SlowGapMs - gapMs) / (SlowGapMs - FastGapMs);
+
+            return (int)Math.Round(ticks * multiplier);
         }
 
         public override void DialRotate(DialRotatePayload payload)
@@ -194,11 +235,11 @@ namespace Elite.Buttons
 
             if (payload.Ticks > 0)
             {
-                SendSteps(settings.FunctionCw, payload.Ticks);
+                SendSteps(settings.FunctionCw, StepsFor(payload.Ticks));
             }
             else if (payload.Ticks < 0)
             {
-                SendSteps(settings.FunctionCcw, -payload.Ticks);
+                SendSteps(settings.FunctionCcw, StepsFor(-payload.Ticks));
             }
         }
 
