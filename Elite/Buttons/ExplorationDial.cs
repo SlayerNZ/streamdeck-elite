@@ -26,14 +26,17 @@ namespace Elite.Buttons
         // Speed is measured as the gap between DialRotate events. At or above SlowGapMs the
         // multiplier is 1; at or below FastGapMs it is the maximum; in between it interpolates.
         private const int DefaultMaxSteps = 1;      // 1 = acceleration off, original behaviour
-        private const int MaxMaxSteps = 20;
+        private const int MaxMaxSteps = 60;
         private const double SlowGapMs = 200.0;
         private const double FastGapMs = 40.0;
 
-        // 20ms between synthetic presses is proven good in game (tested on the UI Navigation
-        // button). The per-event cap stops a hard flick queueing a long blocking run.
-        private const int TickIntervalMs = 20;
-        private const int MaxStepsPerEvent = 30;
+        // Discrete presses are rate limited: steps x TickIntervalMs is real elapsed time, and the
+        // per-event cap clips anything beyond it. Both were originally set far too conservatively
+        // (20ms / 30), which put a hard ceiling on coarse tuning no matter how high the multiplier
+        // went. 10ms sustains ~100 presses/sec; the cap is the last line of defence against a hard
+        // flick queueing a multi-second blocking run.
+        private const int TickIntervalMs = 10;
+        private const int MaxStepsPerEvent = 150;
 
         // Some FSS actions charge while the key is held rather than firing on a tap - the
         // Discovery Scan (honk) is the obvious one. The dial press holds for as long as you
