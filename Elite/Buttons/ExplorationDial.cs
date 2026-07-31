@@ -30,6 +30,10 @@ namespace Elite.Buttons
         private const double SlowGapMs = 200.0;
         private const double FastGapMs = 40.0;
 
+        // Ticks per rotate event at which the multiplier is considered maxed out. Stream Deck
+        // batches detents when spinning quickly, so this is the primary speed signal.
+        private const double FastTicks = 4.0;
+
         // Discrete presses are rate limited: steps x TickIntervalMs is real elapsed time, and the
         // per-event cap clips anything beyond it. Both were originally set far too conservatively
         // (20ms / 30), which put a hard ceiling on coarse tuning no matter how high the multiplier
@@ -204,8 +208,16 @@ namespace Elite.Buttons
 
         /// <summary>
         /// Steps to send for this rotation. One per detent when turning slowly, scaling up to
-        /// the configured maximum as the gap between rotate events shrinks.
+        /// the configured maximum as the spin gets faster.
         /// </summary>
+        /// <remarks>
+        /// Speed is judged two ways because Stream Deck reports fast rotation by BATCHING detents
+        /// into one event with a higher Ticks count, not by sending events more often. Judging on
+        /// the inter-event gap alone therefore barely moved off 1x however hard the dial was spun.
+        /// Ticks-per-event is the more reliable signal; the gap is kept as a secondary so a steady
+        /// fast turn that arrives as a stream of single ticks still accelerates. Whichever reads
+        /// faster wins.
+        /// </remarks>
         private int StepsFor(int ticks)
         {
             var max = Clamp(settings.MaxSteps, DefaultMaxSteps, 1, MaxMaxSteps);
@@ -218,12 +230,23 @@ namespace Elite.Buttons
 
             if (max <= 1) return ticks;
 
-            double multiplier;
-            if (gapMs >= SlowGapMs) multiplier = 1.0;
-            else if (gapMs <= FastGapMs) multiplier = max;
-            else multiplier = 1.0 + (max - 1.0) * (SlowGapMs - gapMs) / (SlowGapMs - FastGapMs);
+            double byGap;
+            if (gapMs >= SlowGapMs) byGap = 1.0;
+            else if (gapMs <= FastGapMs) byGap = max;
+            else byGap = 1.0 + (max - 1.0) * (SlowGapMs - gapMs) / (SlowGapMs - FastGapMs);
 
-            return (int)Math.Round(ticks * multiplier);
+            double byTicks;
+            if (ticks <= 1) byTicks = 1.0;
+            else if (ticks >= FastTicks) byTicks = max;
+            else byTicks = 1.0 + (max - 1.0) * (ticks - 1.0) / (FastTicks - 1.0);
+
+            var multiplier = Math.Max(byGap, byTicks);
+            var steps = (int)Math.Round(ticks * multiplier);
+
+            Logger.Instance.LogMessage(TracingLevel.DEBUG,
+                $"ExplorationDial rotate: ticks={ticks} gap={gapMs:F0}ms byGap={byGap:F1} byTicks={byTicks:F1} steps={steps}");
+
+            return steps;
         }
 
         public override void DialRotate(DialRotatePayload payload)
