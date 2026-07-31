@@ -106,6 +106,20 @@
     </div>
 
     <div class="sdpi-item">
+        <div class="sdpi-item-label">Hold Threshold (ms)</div>
+        <input class="sdpi-item-value sdProperty" type="number" id="holdthresholdms" min="0" max="500" value="100" oninput="setSettings()">
+    </div>
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Release Delay (ms)</div>
+        <input class="sdpi-item-value sdProperty" type="number" id="releasedelayms" min="0" max="1000" value="120" oninput="setSettings()">
+    </div>
+
+    <details class="message">
+        <summary><b>Hold Threshold</b> is how close together two clicks must be to count as a spin rather than deliberate clicking — <b>lower</b> means you must spin faster before it switches to holding. <b>Release Delay</b> is how long after you stop turning the key is let go — <b>lower</b> stops sooner but may stutter mid-spin, <b>higher</b> is smoother but coasts further past your target. Both apply immediately, no restart needed.</summary>
+    </details>
+
+    <div class="sdpi-item">
         <div class="sdpi-item-label">Touch Hold (ms)</div>
         <input class="sdpi-item-value sdProperty" type="number" id="holdms" min="0" max="5000" value="0" oninput="setSettings()">
     </div>

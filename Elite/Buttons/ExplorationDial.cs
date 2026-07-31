@@ -41,10 +41,15 @@ namespace Elite.Buttons
         // flick queueing a multi-second blocking run.
         private const int TickIntervalMs = 10;
 
-        // How long after the last rotation the held key is released, and how often the watcher
-        // checks. Short enough that the movement stops promptly, long enough that the gaps
-        // between rotate events during a genuine spin do not cause stutter.
-        private const int ReleaseIdleMs = 120;
+        // Both timings are exposed in the property inspector so they can be dialled in against
+        // real hardware without a rebuild. Defaults come from in-game telemetry: a slow,
+        // deliberate turn produced single-tick events 120-190ms apart, so a 100ms hold threshold
+        // sits just below that and separates a genuine spin from deliberate clicking.
+        private const int DefaultHoldThresholdMs = 100;
+        private const int MaxHoldThresholdMs = 500;
+        private const int DefaultReleaseDelayMs = 120;
+        private const int MaxReleaseDelayMs = 1000;
+
         private const int WatcherPollMs = 25;
 
         // Some FSS actions charge while the key is held rather than firing on a tap - the
@@ -66,7 +71,9 @@ namespace Elite.Buttons
                     FunctionTouchPress = string.Empty,
                     FunctionTouchLongPress = string.Empty,
                     HoldMs = DefaultHoldMs.ToString(),
-                    MaxSteps = DefaultMaxSteps.ToString()
+                    MaxSteps = DefaultMaxSteps.ToString(),
+                    HoldThresholdMs = DefaultHoldThresholdMs.ToString(),
+                    ReleaseDelayMs = DefaultReleaseDelayMs.ToString()
                 };
             }
 
@@ -90,12 +97,19 @@ namespace Elite.Buttons
 
             [JsonProperty(PropertyName = "maxsteps")]
             public string MaxSteps { get; set; }
+
+            [JsonProperty(PropertyName = "holdthresholdms")]
+            public string HoldThresholdMs { get; set; }
+
+            [JsonProperty(PropertyName = "releasedelayms")]
+            public string ReleaseDelayMs { get; set; }
         }
 
         private PluginSettings settings;
         private string _lastTitle = null;
         private string _lastValue = null;
-        private DateTime _lastRotateUtc = DateTime.MinValue;
+        private DateTime _lastRotateUtc = DateTime.MinValue;   // last rotation, for the hold release
+        private DateTime _lastEventUtc = DateTime.MinValue;    // last rotate event, for spin detection
 
         private readonly object _holdLock = new object();
         private string _holdFunction = null;
@@ -135,6 +149,8 @@ namespace Elite.Buttons
 
             if (string.IsNullOrEmpty(settings.MaxSteps)) { settings.MaxSteps = DefaultMaxSteps.ToString(); changed = true; }
             if (string.IsNullOrEmpty(settings.HoldMs)) { settings.HoldMs = DefaultHoldMs.ToString(); changed = true; }
+            if (string.IsNullOrEmpty(settings.HoldThresholdMs)) { settings.HoldThresholdMs = DefaultHoldThresholdMs.ToString(); changed = true; }
+            if (string.IsNullOrEmpty(settings.ReleaseDelayMs)) { settings.ReleaseDelayMs = DefaultReleaseDelayMs.ToString(); changed = true; }
 
             if (changed)
             {
@@ -271,8 +287,10 @@ namespace Elite.Buttons
             {
                 lock (_holdLock)
                 {
+                    var releaseDelay = Clamp(settings.ReleaseDelayMs, DefaultReleaseDelayMs, 0, MaxReleaseDelayMs);
+
                     if (_holdFunction != null &&
-                        (DateTime.UtcNow - _lastRotateUtc).TotalMilliseconds >= ReleaseIdleMs)
+                        (DateTime.UtcNow - _lastRotateUtc).TotalMilliseconds >= releaseDelay)
                     {
                         Logger.Instance.LogMessage(TracingLevel.DEBUG,
                             $"ExplorationDial release: {_holdFunction}");
@@ -314,13 +332,25 @@ namespace Elite.Buttons
             var function = ticks > 0 ? settings.FunctionCw : settings.FunctionCcw;
             var magnitude = Math.Abs(ticks);
 
-            // Acceleration off, or a single deliberate click: one step, no hold, no tail.
             var max = Clamp(settings.MaxSteps, DefaultMaxSteps, 1, MaxMaxSteps);
+            var holdThreshold = Clamp(settings.HoldThresholdMs, DefaultHoldThresholdMs, 0, MaxHoldThresholdMs);
 
-            if (max <= 1 || (magnitude < FastTicks && _holdFunction == null))
+            var now = DateTime.UtcNow;
+            var gapMs = _lastEventUtc == DateTime.MinValue
+                ? double.MaxValue
+                : (now - _lastEventUtc).TotalMilliseconds;
+            _lastEventUtc = now;
+
+            // A spin is either detents batched into one event, or events arriving closer together
+            // than the threshold. Already holding counts as still spinning.
+            var spinning = magnitude >= FastTicks
+                        || gapMs <= holdThreshold
+                        || _holdFunction != null;
+
+            if (max <= 1 || !spinning)
             {
                 Logger.Instance.LogMessage(TracingLevel.DEBUG,
-                    $"ExplorationDial rotate: ticks={ticks} step (max={max})");
+                    $"ExplorationDial rotate: ticks={ticks} gap={(gapMs > 99999 ? -1 : gapMs):F0}ms step (max={max} thr={holdThreshold})");
 
                 for (var i = 0; i < magnitude; i++)
                 {
@@ -331,7 +361,7 @@ namespace Elite.Buttons
             }
 
             Logger.Instance.LogMessage(TracingLevel.DEBUG,
-                $"ExplorationDial rotate: ticks={ticks} hold");
+                $"ExplorationDial rotate: ticks={ticks} gap={(gapMs > 99999 ? -1 : gapMs):F0}ms hold (thr={holdThreshold})");
 
             StartOrRefreshHold(function);
         }
