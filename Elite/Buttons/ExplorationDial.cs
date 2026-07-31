@@ -40,7 +40,12 @@ namespace Elite.Buttons
         // went. 10ms sustains ~100 presses/sec; the cap is the last line of defence against a hard
         // flick queueing a multi-second blocking run.
         private const int TickIntervalMs = 10;
-        private const int MaxStepsPerEvent = 150;
+
+        // How long after the last rotation the held key is released, and how often the watcher
+        // checks. Short enough that the movement stops promptly, long enough that the gaps
+        // between rotate events during a genuine spin do not cause stutter.
+        private const int ReleaseIdleMs = 120;
+        private const int WatcherPollMs = 25;
 
         // Some FSS actions charge while the key is held rather than firing on a tap - the
         // Discovery Scan (honk) is the obvious one. The dial press holds for as long as you
@@ -92,6 +97,11 @@ namespace Elite.Buttons
         private string _lastValue = null;
         private DateTime _lastRotateUtc = DateTime.MinValue;
 
+        private readonly object _holdLock = new object();
+        private string _holdFunction = null;
+        private readonly CancellationTokenSource _cts = new CancellationTokenSource();
+        private Thread _holdWatcherThread;
+
         public ExplorationDial(SDConnection connection, InitialPayload payload) : base(connection, payload)
         {
             if (payload.Settings == null || payload.Settings.Count == 0)
@@ -104,6 +114,13 @@ namespace Elite.Buttons
                 settings = payload.Settings.ToObject<PluginSettings>();
                 BackfillDefaults();
             }
+
+            _holdWatcherThread = new Thread(HoldWatcher)
+            {
+                Name = "Exploration Dial Hold Watcher",
+                IsBackground = true
+            };
+            _holdWatcherThread.Start();
         }
 
         /// <summary>
@@ -207,91 +224,116 @@ namespace Elite.Buttons
         }
 
         /// <summary>
-        /// Discrete press per detent, unlike the generic Dial which holds the key down while
-        /// you turn. Everything here - tuning, stepped zoom, genus - is a stepped control, and
-        /// holding would either overshoot or run away on key auto-repeat.
+        /// One discrete press. Used for a single detent, where the point is to move exactly one
+        /// step and stop.
         /// </summary>
-        private static void SendSteps(string function, int steps)
+        private static void SendOneStep(string function)
         {
             if (string.IsNullOrEmpty(function)) return;
 
-            if (steps < 1) steps = 1;
-            if (steps > MaxStepsPerEvent) steps = MaxStepsPerEvent;
-
-            for (var i = 0; i < steps; i++)
-            {
-                if (i > 0) Thread.Sleep(TickIntervalMs);
-
-                EliteKeys.SendKeypress(function);
-            }
+            EliteKeys.SendKeypress(function);
         }
 
         /// <summary>
-        /// Steps to send for this rotation. One per detent when turning slowly, scaling up to
-        /// the configured maximum as the spin gets faster.
+        /// Begin (or continue) holding a function's key down while the dial is being spun.
         /// </summary>
-        /// <remarks>
-        /// Speed is judged purely on ticks-per-event, because Stream Deck reports a fast spin by
-        /// BATCHING detents into one event with a higher Ticks count rather than sending events
-        /// more often.
-        ///
-        /// An inter-event gap measure was tried and removed: in-game telemetry showed a slow,
-        /// deliberate turn produces single-tick events 120-190ms apart, which any sensible gap
-        /// threshold reads as "fast". The same one-click turn was landing on 1 step sometimes and
-        /// 10 others, destroying the fine control this is supposed to preserve. Ticks alone are
-        /// clean - 1 when turning slowly, 2-4 when sweeping. The gap is still logged, as a
-        /// diagnostic only.
-        /// </remarks>
-        private int StepsFor(int ticks)
+        private void StartOrRefreshHold(string function)
         {
-            var max = Clamp(settings.MaxSteps, DefaultMaxSteps, 1, MaxMaxSteps);
+            if (string.IsNullOrEmpty(function)) return;
 
-            var now = DateTime.UtcNow;
-            var gapMs = _lastRotateUtc == DateTime.MinValue
-                ? NoGapMs
-                : (now - _lastRotateUtc).TotalMilliseconds;
-            _lastRotateUtc = now;
-
-            if (max <= 1)
+            lock (_holdLock)
             {
-                // Logged before the early return, so "acceleration is off" is visible in the log
-                // rather than being an absence of evidence.
-                Logger.Instance.LogMessage(TracingLevel.DEBUG,
-                    $"ExplorationDial rotate: ticks={ticks} maxSteps={max} (acceleration off) steps={ticks}");
-                return ticks;
+                if (_holdFunction != function)
+                {
+                    ReleaseHoldLocked();          // direction change - let go of the other way first
+                    EliteKeys.SendKeypressDown(function);
+                    _holdFunction = function;
+                }
+
+                _lastRotateUtc = DateTime.UtcNow;
             }
-
-            double multiplier;
-            if (ticks <= 1) multiplier = 1.0;
-            else if (ticks >= FastTicks) multiplier = max;
-            else multiplier = 1.0 + (max - 1.0) * (ticks - 1.0) / (FastTicks - 1.0);
-
-            var steps = (int)Math.Round(ticks * multiplier);
-
-            Logger.Instance.LogMessage(TracingLevel.DEBUG,
-                $"ExplorationDial rotate: ticks={ticks} gap={gapMs:F0}ms mult={multiplier:F1} steps={steps}");
-
-            return steps;
         }
 
+        private void ReleaseHoldLocked()
+        {
+            if (_holdFunction == null) return;
+
+            EliteKeys.SendKeypressUp(_holdFunction);
+            _holdFunction = null;
+        }
+
+        /// <summary>
+        /// Watches for the spin stopping and releases the held key.
+        /// </summary>
+        private void HoldWatcher()
+        {
+            while (!_cts.IsCancellationRequested)
+            {
+                lock (_holdLock)
+                {
+                    if (_holdFunction != null &&
+                        (DateTime.UtcNow - _lastRotateUtc).TotalMilliseconds >= ReleaseIdleMs)
+                    {
+                        Logger.Instance.LogMessage(TracingLevel.DEBUG,
+                            $"ExplorationDial release: {_holdFunction}");
+
+                        ReleaseHoldLocked();
+                    }
+                }
+
+                Thread.Sleep(WatcherPollMs);
+            }
+
+            lock (_holdLock) { ReleaseHoldLocked(); }
+        }
+
+        /// <remarks>
+        /// Two modes, because bursts of discrete presses cannot be un-queued. A fast sweep used to
+        /// enqueue up to 80 presses per event at 10ms each, so nearly a second of movement was
+        /// already committed the moment the dial stopped - the frequency kept sliding past the
+        /// target and overshot badly.
+        ///
+        /// Holding the key instead means the game's own auto-repeat does the moving and releasing
+        /// stops it at once, so the tail is only the release latency. Single detents stay discrete
+        /// so one click is still exactly one step.
+        ///
+        /// Speed is judged on ticks-per-event: Stream Deck reports a fast spin by BATCHING detents
+        /// into one event rather than sending events more often. An inter-event gap measure was
+        /// tried and removed - a slow deliberate turn produces single-tick events 120-190ms apart,
+        /// which any sensible gap threshold misreads as fast.
+        /// </remarks>
         public override void DialRotate(DialRotatePayload payload)
         {
-            if (StreamDeckCommon.InputRunning || Program.Binding == null)
-            {
-                StreamDeckCommon.ForceStop = true;
-                return;
-            }
+            if (Program.Binding == null) return;
 
             StreamDeckCommon.ForceStop = false;
 
-            if (payload.Ticks > 0)
+            var ticks = payload.Ticks;
+            if (ticks == 0) return;
+
+            var function = ticks > 0 ? settings.FunctionCw : settings.FunctionCcw;
+            var magnitude = Math.Abs(ticks);
+
+            // Acceleration off, or a single deliberate click: one step, no hold, no tail.
+            var max = Clamp(settings.MaxSteps, DefaultMaxSteps, 1, MaxMaxSteps);
+
+            if (max <= 1 || (magnitude < FastTicks && _holdFunction == null))
             {
-                SendSteps(settings.FunctionCw, StepsFor(payload.Ticks));
+                Logger.Instance.LogMessage(TracingLevel.DEBUG,
+                    $"ExplorationDial rotate: ticks={ticks} step (max={max})");
+
+                for (var i = 0; i < magnitude; i++)
+                {
+                    if (i > 0) Thread.Sleep(TickIntervalMs);
+                    SendOneStep(function);
+                }
+                return;
             }
-            else if (payload.Ticks < 0)
-            {
-                SendSteps(settings.FunctionCcw, StepsFor(-payload.Ticks));
-            }
+
+            Logger.Instance.LogMessage(TracingLevel.DEBUG,
+                $"ExplorationDial rotate: ticks={ticks} hold");
+
+            StartOrRefreshHold(function);
         }
 
         public override void DialDown(DialPayload payload)
@@ -354,6 +396,12 @@ namespace Elite.Buttons
 
         public override void Dispose()
         {
+            // Cancel first, then let the watcher's exit path release anything still held so the
+            // key cannot be left stuck down if the button is removed mid-spin.
+            _cts.Cancel();
+            _holdWatcherThread?.Join(500);
+            lock (_holdLock) { ReleaseHoldLocked(); }
+
             base.Dispose();
         }
 
