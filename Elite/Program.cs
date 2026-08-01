@@ -1187,10 +1187,6 @@ namespace Elite
                     Logger.Instance.LogMessage(TracingLevel.FATAL, $"Directory doesn't exist {journalPath}");
                 }
 
-                var defaultFilter = @"Journal.*.log";
-//#if DEBUG
-            //defaultFilter = @"JournalAlpha.*.log";
-//#endif
 
                 StatusWatcher = new StatusWatcher(journalPath);
 
