@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using BarRaider.SdTools;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -21,6 +22,12 @@ namespace Elite.Buttons
         private const int DefaultIntervalMs = 50;
         private const int MaxIntervalMs = 2000;
 
+        // Hold Mode keeps the configured presses for a tap and only starts holding the key once
+        // the button has been down longer than this. Named to match the Exploration Dial's field.
+        private const int DefaultHoldThresholdMs = 100;
+        private const int MaxHoldThresholdMs = 2000;
+        private const int HoldPollMs = 20;
+
         protected class PluginSettings
         {
             public static PluginSettings CreateDefaultSettings()
@@ -31,6 +38,7 @@ namespace Elite.Buttons
                     Presses = DefaultPresses.ToString(),
                     IntervalMs = DefaultIntervalMs.ToString(),
                     Condition = string.Empty,
+                    HoldThresholdMs = DefaultHoldThresholdMs.ToString(),
                     ClickSoundFilename = string.Empty
                 };
 
@@ -52,6 +60,9 @@ namespace Elite.Buttons
             [JsonProperty(PropertyName = "holdMode")]
             public bool HoldMode { get; set; }
 
+            [JsonProperty(PropertyName = "holdThresholdMs")]
+            public string HoldThresholdMs { get; set; }
+
             [FilenameProperty]
             [JsonProperty(PropertyName = "clickSound")]
             public string ClickSoundFilename { get; set; }
@@ -60,7 +71,10 @@ namespace Elite.Buttons
 
         PluginSettings settings;
         private CachedSound _clickSound = null;
-        private bool _keyIsDown = false;
+        private readonly object _holdLock = new object();
+        private bool _keyIsDown = false;      // the game key is currently held down
+        private bool _buttonIsDown = false;   // the Stream Deck button is currently held down
+        private int _pressToken = 0;          // invalidates a pending hold watch from an older press
 
 
         public UiNavigation(SDConnection connection, InitialPayload payload) : base(connection, payload)
@@ -73,6 +87,15 @@ namespace Elite.Buttons
             else
             {
                 settings = payload.Settings.ToObject<PluginSettings>();
+
+                // A button placed before a setting existed has no key for it, so it deserialises
+                // as null and would clamp to whatever the floor happens to be. Fill the gap so
+                // older buttons show a real value in the property inspector.
+                if (string.IsNullOrEmpty(settings.HoldThresholdMs))
+                {
+                    settings.HoldThresholdMs = DefaultHoldThresholdMs.ToString();
+                }
+
                 HandleFileNames();
             }
         }
@@ -114,28 +137,6 @@ namespace Elite.Buttons
             // half way through because the state changed as a result of its own input.
             if (!ConditionMet()) return;
 
-            // Hold mode maps the button straight onto the key, exactly like a real keyboard:
-            // a tap is one short press (one step), holding it down repeats via the game's own
-            // auto-repeat, and releasing stops immediately. Presses/Interval do not apply.
-            if (settings.HoldMode && IsHoldable(settings.Function))
-            {
-                _keyIsDown = true;
-                EliteKeys.SendKeypressDown(settings.Function);
-
-                PlayClickSound();
-                return;
-            }
-
-            if (settings.HoldMode)
-            {
-                // Composite action with no keydown/keyup dispatcher - fall back to a normal press
-                // rather than silently doing nothing.
-                EliteKeys.SendKeypress(settings.Function);
-
-                PlayClickSound();
-                return;
-            }
-
             var presses = Clamp(settings.Presses, DefaultPresses, 1, MaxPresses);
             var interval = Clamp(settings.IntervalMs, DefaultIntervalMs, 0, MaxIntervalMs);
 
@@ -153,18 +154,68 @@ namespace Elite.Buttons
             }
 
             PlayClickSound();
+
+            // A tap keeps the deterministic press count above. Only once the button has been held
+            // past the threshold does the key go down and stay down, so menu buttons configured
+            // with Presses = 2 or 3 still land on exactly that many steps.
+            if (settings.HoldMode && IsHoldable(settings.Function))
+            {
+                StartHoldWatch();
+            }
         }
 
         /// <summary>
-        /// Releases the key in hold mode. Guarded by _keyIsDown so a press blocked by the
-        /// condition check cannot produce an unmatched key-up.
+        /// Waits for the hold threshold, then presses the key and leaves it down until release.
+        /// Abandoned if the button comes up first, which is the ordinary tap case.
+        /// </summary>
+        private void StartHoldWatch()
+        {
+            var threshold = Clamp(settings.HoldThresholdMs, DefaultHoldThresholdMs, 0, MaxHoldThresholdMs);
+            var token = ++_pressToken;
+
+            _buttonIsDown = true;
+
+            Task.Run(() =>
+            {
+                var waited = 0;
+                while (waited < threshold)
+                {
+                    Thread.Sleep(HoldPollMs);
+                    waited += HoldPollMs;
+
+                    lock (_holdLock)
+                    {
+                        // Released, or superseded by a newer press - this was a tap.
+                        if (!_buttonIsDown || token != _pressToken) return;
+                    }
+                }
+
+                lock (_holdLock)
+                {
+                    if (!_buttonIsDown || token != _pressToken) return;
+
+                    _keyIsDown = true;
+                    EliteKeys.SendKeypressDown(settings.Function);
+                }
+            });
+        }
+
+        /// <summary>
+        /// Ends the press. Releases the key if the hold had started; a plain tap has nothing to do.
+        /// Guarded by _keyIsDown so a press blocked by the condition check cannot produce an
+        /// unmatched key-up.
         /// </summary>
         public override void KeyReleased(KeyPayload payload)
         {
-            if (!_keyIsDown) return;
+            lock (_holdLock)
+            {
+                _buttonIsDown = false;
 
-            _keyIsDown = false;
-            EliteKeys.SendKeypressUp(settings.Function);
+                if (!_keyIsDown) return;
+
+                _keyIsDown = false;
+                EliteKeys.SendKeypressUp(settings.Function);
+            }
         }
 
         /// <summary>

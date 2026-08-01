@@ -118,8 +118,13 @@
         </div>
     </div>
 
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Hold Threshold (ms)</div>
+        <input class="sdpi-item-value sdProperty" type="number" id="holdThresholdMs" min="0" max="2000" value="100" oninput="setSettings()">
+    </div>
+
     <details class="message">
-        <summary><b>Hold Mode</b> maps the button straight onto the key, like a real keyboard: a tap moves one step, holding it down keeps moving, and releasing stops immediately. Good for things you sometimes nudge and sometimes sweep, such as FSS tuning. <b>Presses</b> and <b>Interval</b> are ignored while it is on.</summary>
+        <summary><b>Hold Mode</b> lets a button do both jobs. A <b>tap</b> still sends exactly the <b>Presses</b> count above, so menu buttons land on a precise number of steps. Keep it held past the <b>Hold Threshold</b> and the key stays down, moving continuously until you let go — useful for FSS tuning, galaxy map panning and camera movement.<br><br>Best left off for <b>Select</b> and <b>Back</b>, where an accidental hold would repeat-fire them. The "…&nbsp;On" panel and map entries cannot be held and always send a normal press.</summary>
     </details>
 
     <div class="sdpi-item sdpi-heading">Advanced</div>
