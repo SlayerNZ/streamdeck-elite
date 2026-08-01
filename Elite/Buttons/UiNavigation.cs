@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using BarRaider.SdTools;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -21,6 +22,12 @@ namespace Elite.Buttons
         private const int DefaultIntervalMs = 50;
         private const int MaxIntervalMs = 2000;
 
+        // Hold Mode keeps the configured presses for a tap and only starts holding the key once
+        // the button has been down longer than this. Named to match the Exploration Dial's field.
+        private const int DefaultHoldThresholdMs = 100;
+        private const int MaxHoldThresholdMs = 2000;
+        private const int HoldPollMs = 20;
+
         protected class PluginSettings
         {
             public static PluginSettings CreateDefaultSettings()
@@ -31,6 +38,7 @@ namespace Elite.Buttons
                     Presses = DefaultPresses.ToString(),
                     IntervalMs = DefaultIntervalMs.ToString(),
                     Condition = string.Empty,
+                    HoldThresholdMs = DefaultHoldThresholdMs.ToString(),
                     ClickSoundFilename = string.Empty
                 };
 
@@ -49,6 +57,12 @@ namespace Elite.Buttons
             [JsonProperty(PropertyName = "condition")]
             public string Condition { get; set; }
 
+            [JsonProperty(PropertyName = "holdMode")]
+            public bool HoldMode { get; set; }
+
+            [JsonProperty(PropertyName = "holdThresholdMs")]
+            public string HoldThresholdMs { get; set; }
+
             [FilenameProperty]
             [JsonProperty(PropertyName = "clickSound")]
             public string ClickSoundFilename { get; set; }
@@ -57,6 +71,10 @@ namespace Elite.Buttons
 
         PluginSettings settings;
         private CachedSound _clickSound = null;
+        private readonly object _holdLock = new object();
+        private bool _keyIsDown = false;      // the game key is currently held down
+        private bool _buttonIsDown = false;   // the Stream Deck button is currently held down
+        private int _pressToken = 0;          // invalidates a pending hold watch from an older press
 
 
         public UiNavigation(SDConnection connection, InitialPayload payload) : base(connection, payload)
@@ -69,6 +87,15 @@ namespace Elite.Buttons
             else
             {
                 settings = payload.Settings.ToObject<PluginSettings>();
+
+                // A button placed before a setting existed has no key for it, so it deserialises
+                // as null and would clamp to whatever the floor happens to be. Fill the gap so
+                // older buttons show a real value in the property inspector.
+                if (string.IsNullOrEmpty(settings.HoldThresholdMs))
+                {
+                    settings.HoldThresholdMs = DefaultHoldThresholdMs.ToString();
+                }
+
                 HandleFileNames();
             }
         }
@@ -126,16 +153,92 @@ namespace Elite.Buttons
                 EliteKeys.SendKeypress(settings.Function);
             }
 
-            if (_clickSound != null)
+            PlayClickSound();
+
+            // A tap keeps the deterministic press count above. Only once the button has been held
+            // past the threshold does the key go down and stay down, so menu buttons configured
+            // with Presses = 2 or 3 still land on exactly that many steps.
+            if (settings.HoldMode && IsHoldable(settings.Function))
             {
-                try
+                StartHoldWatch();
+            }
+        }
+
+        /// <summary>
+        /// Waits for the hold threshold, then presses the key and leaves it down until release.
+        /// Abandoned if the button comes up first, which is the ordinary tap case.
+        /// </summary>
+        private void StartHoldWatch()
+        {
+            var threshold = Clamp(settings.HoldThresholdMs, DefaultHoldThresholdMs, 0, MaxHoldThresholdMs);
+            var token = ++_pressToken;
+
+            _buttonIsDown = true;
+
+            Task.Run(() =>
+            {
+                var waited = 0;
+                while (waited < threshold)
                 {
-                    AudioPlaybackEngine.Instance.PlaySound(_clickSound);
+                    Thread.Sleep(HoldPollMs);
+                    waited += HoldPollMs;
+
+                    lock (_holdLock)
+                    {
+                        // Released, or superseded by a newer press - this was a tap.
+                        if (!_buttonIsDown || token != _pressToken) return;
+                    }
                 }
-                catch (Exception ex)
+
+                lock (_holdLock)
                 {
-                    Logger.Instance.LogMessage(TracingLevel.FATAL, $"PlaySound: {ex}");
+                    if (!_buttonIsDown || token != _pressToken) return;
+
+                    _keyIsDown = true;
+                    EliteKeys.SendKeypressDown(settings.Function);
                 }
+            });
+        }
+
+        /// <summary>
+        /// Ends the press. Releases the key if the hold had started; a plain tap has nothing to do.
+        /// Guarded by _keyIsDown so a press blocked by the condition check cannot produce an
+        /// unmatched key-up.
+        /// </summary>
+        public override void KeyReleased(KeyPayload payload)
+        {
+            lock (_holdLock)
+            {
+                _buttonIsDown = false;
+
+                if (!_keyIsDown) return;
+
+                _keyIsDown = false;
+                EliteKeys.SendKeypressUp(settings.Function);
+            }
+        }
+
+        /// <summary>
+        /// The "-ON" style entries are composite actions that check GuiFocus and send a short
+        /// sequence; EliteKeys only dispatches them as a whole press, with no keydown/keyup pair.
+        /// Holding one would send nothing at all, so they are excluded from hold mode.
+        /// </summary>
+        private static bool IsHoldable(string function)
+        {
+            return !string.IsNullOrEmpty(function) && function.IndexOf('-') < 0;
+        }
+
+        private void PlayClickSound()
+        {
+            if (_clickSound == null) return;
+
+            try
+            {
+                AudioPlaybackEngine.Instance.PlaySound(_clickSound);
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogMessage(TracingLevel.FATAL, $"PlaySound: {ex}");
             }
         }
 

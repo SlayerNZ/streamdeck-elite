@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,minimal-ui,viewport-fit=cover">
+    <meta name=apple-mobile-web-app-capable content=yes>
+    <meta name=apple-mobile-web-app-status-bar-style content=black>
+    <title>Mhwlng's Elite</title>
+    <link rel="stylesheet" href="../sdpi.css">
+    <script src="../sdtools.common.js"></script>
+    <script src="../jquery-3.3.1.min.js"></script>
+</head>
+<body>
+<div class="sdpi-wrapper">
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Rotate Left</div>
+        <select class="sdpi-item-value select sdProperty" id="functionccw" oninput="setSettings()">
+            <option value="">— None —</option>
+            <optgroup label="FSS">
+                <option value="ExplorationFSSRadioTuningX_Decrease">Tune Left</option>
+                <option value="ExplorationFSSMiniZoomIn">Stepped Zoom In</option>
+                <option value="ExplorationFSSMiniZoomOut">Stepped Zoom Out</option>
+                <option value="ExplorationFSSZoomIn">Zoom In to Target</option>
+                <option value="ExplorationFSSZoomOut">Zoom Out</option>
+            </optgroup>
+            <optgroup label="DSS">
+                <option value="ExplorationSAAPreviousGenus">Prev Genus (Bio/Geo filter)</option>
+                <option value="ExplorationSAANextGenus">Next Genus (Bio/Geo filter)</option>
+            </optgroup>
+        </select>
+    </div>
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Rotate Right</div>
+        <select class="sdpi-item-value select sdProperty" id="functioncw" oninput="setSettings()">
+            <option value="">— None —</option>
+            <optgroup label="FSS">
+                <option value="ExplorationFSSRadioTuningX_Increase">Tune Right</option>
+                <option value="ExplorationFSSMiniZoomOut">Stepped Zoom Out</option>
+                <option value="ExplorationFSSMiniZoomIn">Stepped Zoom In</option>
+                <option value="ExplorationFSSZoomOut">Zoom Out</option>
+                <option value="ExplorationFSSZoomIn">Zoom In to Target</option>
+            </optgroup>
+            <optgroup label="DSS">
+                <option value="ExplorationSAANextGenus">Next Genus (Bio/Geo filter)</option>
+                <option value="ExplorationSAAPreviousGenus">Prev Genus (Bio/Geo filter)</option>
+            </optgroup>
+        </select>
+    </div>
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Dial Press</div>
+        <select class="sdpi-item-value select sdProperty" id="functionpress" oninput="setSettings()">
+            <option value="">— None —</option>
+            <optgroup label="FSS">
+                <option value="ExplorationFSSDiscoveryScan">Discovery Scan (honk)</option>
+                <option value="ExplorationFSSTarget">Target Current Signal</option>
+                <option value="ExplorationFSSEnter">Enter FSS (may be a toggle)</option>
+                <option value="ExplorationFSSQuit">Exit FSS (may be a toggle)</option>
+            </optgroup>
+            <optgroup label="DSS">
+                <option value="ExplorationSAAChangeScannedAreaViewToggle">Toggle Front/Back View</option>
+                <option value="ExplorationSAAExitThirdPerson">Exit DSS Third Person</option>
+            </optgroup>
+        </select>
+    </div>
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Touch Tap</div>
+        <select class="sdpi-item-value select sdProperty" id="functiontouchpress" oninput="setSettings()">
+            <option value="">— None —</option>
+            <optgroup label="FSS">
+                <option value="ExplorationFSSDiscoveryScan">Discovery Scan (honk)</option>
+                <option value="ExplorationFSSTarget">Target Current Signal</option>
+                <option value="ExplorationFSSEnter">Enter FSS (may be a toggle)</option>
+                <option value="ExplorationFSSQuit">Exit FSS (may be a toggle)</option>
+            </optgroup>
+            <optgroup label="DSS">
+                <option value="ExplorationSAAChangeScannedAreaViewToggle">Toggle Front/Back View</option>
+                <option value="ExplorationSAAExitThirdPerson">Exit DSS Third Person</option>
+            </optgroup>
+        </select>
+    </div>
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Touch Long Press</div>
+        <select class="sdpi-item-value select sdProperty" id="functiontouchlongpress" oninput="setSettings()">
+            <option value="">— None —</option>
+            <optgroup label="FSS">
+                <option value="ExplorationFSSQuit">Exit FSS (may be a toggle)</option>
+                <option value="ExplorationFSSDiscoveryScan">Discovery Scan (honk)</option>
+                <option value="ExplorationFSSTarget">Target Current Signal</option>
+                <option value="ExplorationFSSEnter">Enter FSS (may be a toggle)</option>
+            </optgroup>
+            <optgroup label="DSS">
+                <option value="ExplorationSAAExitThirdPerson">Exit DSS Third Person</option>
+                <option value="ExplorationSAAChangeScannedAreaViewToggle">Toggle Front/Back View</option>
+            </optgroup>
+        </select>
+    </div>
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Max Steps / Detent</div>
+        <input class="sdpi-item-value sdProperty" type="number" id="maxsteps" min="1" max="60" value="1" oninput="setSettings()">
+    </div>
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Hold Threshold (ms)</div>
+        <input class="sdpi-item-value sdProperty" type="number" id="holdthresholdms" min="0" max="500" value="100" oninput="setSettings()">
+    </div>
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Release Delay (ms)</div>
+        <input class="sdpi-item-value sdProperty" type="number" id="releasedelayms" min="0" max="1000" value="120" oninput="setSettings()">
+    </div>
+
+    <details class="message">
+        <summary><b>Hold Threshold</b> is how close together two clicks must be to count as a spin rather than deliberate clicking — <b>lower</b> means you must spin faster before it switches to holding. <b>Release Delay</b> is how long after you stop turning the key is let go — <b>lower</b> stops sooner but may stutter mid-spin, <b>higher</b> is smoother but coasts further past your target. Both apply immediately, no restart needed.</summary>
+    </details>
+
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Touch Hold (ms)</div>
+        <input class="sdpi-item-value sdProperty" type="number" id="holdms" min="0" max="5000" value="0" oninput="setSettings()">
+    </div>
+
+    <details class="message">
+        <summary><b>Max Steps / Detent</b> above 1 enables fast sweeping. A single click always moves exactly one step, so fine control near a signal is unchanged; spin the dial quickly and the key is held down instead, moving continuously until you stop turning. Useful for FSS tuning, where crossing the band one step at a time takes forever. Leave it at <b>1</b> for stepped controls such as the DSS genus filter, where you only ever want one item at a time.</summary>
+    </details>
+
+    <details class="message">
+        <summary>Sends the keys you have bound in Elite, so it follows your own control setup. The touch strip shows bio and geo signal counts — for a body you have just resolved in the FSS (briefly), otherwise for the body you are currently at. A function bound only to a HOTAS or mouse cannot be sent; give it a keyboard binding as well.</summary>
+    </details>
+
+    <details class="message">
+        <summary><b>Actions that charge while held</b>, such as the Discovery Scan, need the key held down rather than tapped. The <b>dial press</b> already does this — it holds for as long as you hold the encoder. A <b>touch</b> has no release to wait for, so set <b>Touch Hold</b> to how long the key should be held (try 1000&nbsp;ms for a Discovery Scan). Leave it at 0 for normal one-shot actions.<br><br><b>Bind held actions to a plain key, with no Shift/Ctrl/Alt modifier.</b> Elite does not reliably accept a held modifier chord, so a Discovery Scan bound to something like Shift&#8209;D will not charge — it will appear to do nothing at all. An unmodified key works.</summary>
+    </details>
+
+    <details class="message">
+        <summary><b>Enter and Exit FSS</b> are often bound to the same key, in which case that key is a toggle and picking either entry does the same thing. Assign it once rather than to two separate slots.</summary>
+    </details>
+
+</div>
+</body>
+</html>

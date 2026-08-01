@@ -371,6 +371,26 @@
       "PropertyInspectorPath": "PropertyInspector/Elite/FireGroupDial.html"
     },
     {
+      "Icon": "Images/pluginIcon",
+      "Name": "Exploration Dial (FSS / DSS)",
+      "Controllers": [
+        "Encoder"
+      ],
+      "States": [
+        {
+          "Image": "Images/pluginIcon"
+        }
+      ],
+      "Encoder": {
+        "Icon": "Images/pluginDialIcon",
+        "layout": "./layout1.json"
+      },
+      "SupportedInMultiActions": false,
+      "Tooltip": "Elite Dangerous Exploration Dial - FSS tuning/zoom and DSS genus filter, with bio/geo signal counts",
+      "UUID": "com.mhwlng.elite.explorationdial",
+      "PropertyInspectorPath": "PropertyInspector/Elite/ExplorationDial.html"
+    },
+    {
       "Icon": "Images/Neutron Star",
       "Name": "Neutron Plot (3 info rows)",
       "States": [
@@ -441,7 +461,7 @@
   "Name": "Elite Dangerous",
   "Icon": "Images/pluginIcon",
   "URL": "https://github.com/SlayerNZ/streamdeck-elite",
-  "Version": "4.1.0.12",
+  "Version": "4.2.0.13",
   "CodePath": "com.mhwlng.elite",
   "Category": "Elite Dangerous",
   "CategoryIcon": "Images/categoryIcon",
