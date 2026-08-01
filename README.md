@@ -501,6 +501,11 @@ When no alerts are active, the button shows a configurable default state (image 
 
 A set of custom button images is included in the `Images/Optional` directory, created using [Andechs75's Elite Dangerous icon PowerPoint template](https://github.com/Andechs75/Elite-Dangerous-Streamdeck-Icons/tree/master). These cover the Ship Status states and other common functions. Feel free to use, modify, or create your own using the same template.
 
+`Images/Optional/Wireframe` adds a hand-drawn set in the orange wireframe style of the Elite HUD — toggle pairs for the cargo scoop, hardpoints and landing gear, deploy/recall pairs for the SRV and Nomad SLV, plus camera, free look, galaxy and system map, on foot, neutron star, station and supercruise. Use them freely.
+
+**These images now ship with the plugin.** After installing you'll find them in
+`%appdata%\Elgato\StreamDeck\Plugins\com.mhwlng.elite.sdPlugin\Images\Optional`, ready to pick from the button settings — handy for the **Toggle Button**, which needs an "on" and an "off" image to show state.
+
 > **Tip:** Use the PowerPoint template to design a button, take a snip, then crop in your favourite paint program to fit your Stream Deck button size.
 
 ---

@@ -103,6 +103,13 @@
     <Content Include="Images\Neutron Star.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <!-- Ship the optional button artwork with the plugin. Previously these lived in the repo
+         only, so anyone installing the release had none of them - which made the Toggle Button
+         awkward, since it requires an on and an off image per button and we supplied neither.
+         Wildcarded rather than listed so new icons need no csproj edit. -->
+    <Content Include="Images\Optional\**\*.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="PropertyInspector\caret.svg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
