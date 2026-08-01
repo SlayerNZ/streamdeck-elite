@@ -67,6 +67,23 @@
                 <option value="SystemMapOpen_Humanoid">System Map (On Foot)</option>
             </optgroup>
 
+            <optgroup label="FSS / DSS">
+                <option value="ExplorationFSSRadioTuningX_Decrease">Tune Left</option>
+                <option value="ExplorationFSSRadioTuningX_Increase">Tune Right</option>
+                <option value="ExplorationFSSMiniZoomIn">Stepped Zoom In</option>
+                <option value="ExplorationFSSMiniZoomOut">Stepped Zoom Out</option>
+                <option value="ExplorationFSSZoomIn">Zoom In to Target</option>
+                <option value="ExplorationFSSZoomOut">Zoom Out</option>
+                <option value="ExplorationFSSDiscoveryScan">Discovery Scan (honk)</option>
+                <option value="ExplorationFSSTarget">Target Current Signal</option>
+                <option value="ExplorationFSSEnter">Enter FSS (may be a toggle)</option>
+                <option value="ExplorationFSSQuit">Exit FSS (may be a toggle)</option>
+                <option value="ExplorationSAAPreviousGenus">Prev Genus (Bio/Geo filter)</option>
+                <option value="ExplorationSAANextGenus">Next Genus (Bio/Geo filter)</option>
+                <option value="ExplorationSAAChangeScannedAreaViewToggle">Toggle Front/Back View</option>
+                <option value="ExplorationSAAExitThirdPerson">Exit DSS Third Person</option>
+            </optgroup>
+
             <optgroup label="Galaxy Map — Camera">
                 <option value="CamTranslateForward">Move Forward</option>
                 <option value="CamTranslateBackward">Move Backward</option>
@@ -92,6 +109,18 @@
         <div class="sdpi-item-label">Interval (ms)</div>
         <input class="sdpi-item-value sdProperty" type="number" id="intervalMs" min="0" max="2000" value="50" oninput="setSettings()">
     </div>
+
+    <div type="checkbox" class="sdpi-item" id="dvHoldMode">
+        <div class="sdpi-item-label">Hold Mode</div>
+        <div class="sdpi-item-value">
+            <input id="holdMode" class="sdProperty sdCheckbox" type="checkbox" value="" oninput="setSettings()">
+            <label for="holdMode" class="sdpi-item-label"><span></span>Repeat while held</label>
+        </div>
+    </div>
+
+    <details class="message">
+        <summary><b>Hold Mode</b> maps the button straight onto the key, like a real keyboard: a tap moves one step, holding it down keeps moving, and releasing stops immediately. Good for things you sometimes nudge and sometimes sweep, such as FSS tuning. <b>Presses</b> and <b>Interval</b> are ignored while it is on.</summary>
+    </details>
 
     <div class="sdpi-item sdpi-heading">Advanced</div>
 

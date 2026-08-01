@@ -49,6 +49,9 @@ namespace Elite.Buttons
             [JsonProperty(PropertyName = "condition")]
             public string Condition { get; set; }
 
+            [JsonProperty(PropertyName = "holdMode")]
+            public bool HoldMode { get; set; }
+
             [FilenameProperty]
             [JsonProperty(PropertyName = "clickSound")]
             public string ClickSoundFilename { get; set; }
@@ -57,6 +60,7 @@ namespace Elite.Buttons
 
         PluginSettings settings;
         private CachedSound _clickSound = null;
+        private bool _keyIsDown = false;
 
 
         public UiNavigation(SDConnection connection, InitialPayload payload) : base(connection, payload)
@@ -110,6 +114,28 @@ namespace Elite.Buttons
             // half way through because the state changed as a result of its own input.
             if (!ConditionMet()) return;
 
+            // Hold mode maps the button straight onto the key, exactly like a real keyboard:
+            // a tap is one short press (one step), holding it down repeats via the game's own
+            // auto-repeat, and releasing stops immediately. Presses/Interval do not apply.
+            if (settings.HoldMode && IsHoldable(settings.Function))
+            {
+                _keyIsDown = true;
+                EliteKeys.SendKeypressDown(settings.Function);
+
+                PlayClickSound();
+                return;
+            }
+
+            if (settings.HoldMode)
+            {
+                // Composite action with no keydown/keyup dispatcher - fall back to a normal press
+                // rather than silently doing nothing.
+                EliteKeys.SendKeypress(settings.Function);
+
+                PlayClickSound();
+                return;
+            }
+
             var presses = Clamp(settings.Presses, DefaultPresses, 1, MaxPresses);
             var interval = Clamp(settings.IntervalMs, DefaultIntervalMs, 0, MaxIntervalMs);
 
@@ -126,16 +152,42 @@ namespace Elite.Buttons
                 EliteKeys.SendKeypress(settings.Function);
             }
 
-            if (_clickSound != null)
+            PlayClickSound();
+        }
+
+        /// <summary>
+        /// Releases the key in hold mode. Guarded by _keyIsDown so a press blocked by the
+        /// condition check cannot produce an unmatched key-up.
+        /// </summary>
+        public override void KeyReleased(KeyPayload payload)
+        {
+            if (!_keyIsDown) return;
+
+            _keyIsDown = false;
+            EliteKeys.SendKeypressUp(settings.Function);
+        }
+
+        /// <summary>
+        /// The "-ON" style entries are composite actions that check GuiFocus and send a short
+        /// sequence; EliteKeys only dispatches them as a whole press, with no keydown/keyup pair.
+        /// Holding one would send nothing at all, so they are excluded from hold mode.
+        /// </summary>
+        private static bool IsHoldable(string function)
+        {
+            return !string.IsNullOrEmpty(function) && function.IndexOf('-') < 0;
+        }
+
+        private void PlayClickSound()
+        {
+            if (_clickSound == null) return;
+
+            try
             {
-                try
-                {
-                    AudioPlaybackEngine.Instance.PlaySound(_clickSound);
-                }
-                catch (Exception ex)
-                {
-                    Logger.Instance.LogMessage(TracingLevel.FATAL, $"PlaySound: {ex}");
-                }
+                AudioPlaybackEngine.Instance.PlaySound(_clickSound);
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogMessage(TracingLevel.FATAL, $"PlaySound: {ex}");
             }
         }
 
