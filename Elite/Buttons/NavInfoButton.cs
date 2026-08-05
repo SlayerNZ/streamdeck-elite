@@ -318,21 +318,11 @@ namespace Elite.Buttons
 
         private static string FormatJumpRange()
         {
-            double range;
-            if (EliteData.FSDOptimalMass > 0 && EliteData.FSDMaxFuelPerJump > 0 && EliteData.UnladenMass > 0)
-            {
-                var totalMass = EliteData.UnladenMass + EliteData.StatusData.Fuel.FuelMain + EliteData.StatusData.Cargo;
-                var fsdRange = EliteData.FSDOptimalMass / totalMass
-                    * Math.Pow(EliteData.FSDMaxFuelPerJump / EliteData.FSDLinearConstant, 1.0 / EliteData.FSDPowerConstant);
-                var currentRange = fsdRange + EliteData.GuardianFSDBonus;
-                range = EliteData.IsFsdBoosted ? currentRange * EliteData.BoostValue : currentRange;
-            }
-            else
-            {
-                range = EliteData.BaseJumpRange > 0
-                    ? EliteData.BaseJumpRange * (EliteData.IsFsdBoosted ? EliteData.BoostValue : 1.0)
-                    : EliteData.LastJumpDistance;
-            }
+            // Shared implementation - this used to be a private copy of the formula, which drifted
+            // from EliteData's when the SCO Mk II fix landed and showed 81.5 against the 3-row
+            // button's 81.4 for the same ship.
+            var range = EliteData.GetJumpRange(true);
+
             return $"{range:0.0} LY{(EliteData.IsFsdBoosted ? " ⚡" : "")}";
         }
 
