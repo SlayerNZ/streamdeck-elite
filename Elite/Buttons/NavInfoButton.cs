@@ -323,7 +323,7 @@ namespace Elite.Buttons
             // button's 81.4 for the same ship.
             var range = EliteData.GetJumpRange(true);
 
-            return $"{range:0.0} LY{(EliteData.IsFsdBoosted ? " ⚡" : "")}";
+            return $"{range:0.00}LY{(EliteData.IsFsdBoosted ? " ⚡" : "")}";
         }
 
         private Color ResolveColor(string infoType, string hex)

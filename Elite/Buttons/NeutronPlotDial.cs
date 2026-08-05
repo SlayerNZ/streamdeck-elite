@@ -238,7 +238,7 @@ namespace Elite.Buttons
             // formula and drifted from it, showing 81.5 where the 3-row button showed 81.4.
             var range = EliteData.GetJumpRange(true);
 
-            return $"{range:0.0} LY{(EliteData.IsFsdBoosted ? " ⚡" : "")}";
+            return $"{range:0.00}LY{(EliteData.IsFsdBoosted ? " ⚡" : "")}";
         }
 
         private static void ExecuteFunction(string function)
