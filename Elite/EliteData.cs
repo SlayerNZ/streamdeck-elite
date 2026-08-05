@@ -40,6 +40,21 @@ namespace Elite
         // that one hull; any other ship carrying a Mk II over-estimated by ~0.9% with no correction
         // at all. Fixing the exponent addresses every ship with this drive.
         private const double ScoMkIIPowerConstant = 2.5;
+
+        // Phantom mass added to every jump-range estimate so the figure always reads slightly
+        // UNDER what the ship can really do. One tonne is worth about 0.06 LY on an 85 LY jump -
+        // negligible for ordinary travel, but it is applied before the neutron multiplier, so a
+        // 6x supercharge turns it into roughly 0.37 LY of headroom where it actually matters.
+        //
+        // A flat tonne was chosen over the alternatives after measuring seven fuel levels in game:
+        //   - rounding fuel up to the tonne produced a SAWTOOTH, swinging 0.06 LY as fuel crossed
+        //     each whole tonne, and combined with assuming a full reservoir the margin faded to
+        //     zero by ~47t and then went POSITIVE - gone exactly when a long trip needs it;
+        //   - a percentage of the fuel is smooth but shrinks with the fuel, so it also dies at the
+        //     bottom of the tank (3% of fuel is worth 0.009 LY at 5t remaining).
+        // A fixed tonne is a slightly LARGER fraction of a lighter ship, so the margin grows a
+        // little as the tank empties: 0.051 LY at a full tank, 0.062 LY near empty.
+        private const double SafetyMassTonnes = 1.0;
         public static double FSDOptimalMass = 0.0;
         public static double FSDMaxFuelPerJump = 0.0;
         public static double FSDLinearConstant = 0.0;
@@ -467,14 +482,12 @@ namespace Elite
             double range;
             if (FSDOptimalMass > 0 && FSDMaxFuelPerJump > 0 && UnladenMass > 0)
             {
-                // Conservative mass, DELIBERATELY: fuel rounded up to the next tonne and a full
-                // reservoir assumed, so the figure leans slightly under rather than overstating
-                // reach. This reads ~0.08 LY below the game's own number at a full tank, which
-                // looks like an error but is not - the display is used to plan long-distance
-                // travel, where over-estimating range is how you end up stranded short of a star.
-                // Do not "correct" this to match the HUD; that trade was tried and rejected.
-                var fuel = Math.Ceiling(StatusData.Fuel.FuelMain) + FuelCapacityReserve;
-                var totalMass = UnladenMass + fuel + StatusData.Cargo;
+                // Real mass, plus a deliberate phantom tonne (see SafetyMassTonnes). The figure is
+                // used to plan long-distance travel, where over-estimating range is how you end up
+                // stranded short of a star, so it should always read slightly under the game's own
+                // number. Do not "correct" it to match the HUD - that trade was tried and rejected.
+                var fuel = StatusData.Fuel.FuelMain + StatusData.Fuel.FuelReservoir;
+                var totalMass = UnladenMass + fuel + StatusData.Cargo + SafetyMassTonnes;
                 var fsdRange = FSDOptimalMass / totalMass
                     * Math.Pow(FSDMaxFuelPerJump / FSDLinearConstant, 1.0 / FSDPowerConstant);
                 // No range trim: the Guardian bonus is a flat additive term the game applies after
