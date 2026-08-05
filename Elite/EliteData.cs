@@ -467,13 +467,13 @@ namespace Elite
             double range;
             if (FSDOptimalMass > 0 && FSDMaxFuelPerJump > 0 && UnladenMass > 0)
             {
-                // Actual fuel, not a conservative over-estimate. Rounding fuel up to the next tonne
-                // and assuming a FULL reservoir used to hide the wrong SCO Mk II power constant, but
-                // now that the exponent is right it is the only remaining error - and it pushed the
-                // display 0.08 LY BELOW the game's own figure, which reads as a bug. Measured docked
-                // at full tank: actual mass gives 81.46 vs 81.43 in-game (+0.04%), the conservative
-                // mass gave 81.35 (-0.09%).
-                var fuel = StatusData.Fuel.FuelMain + StatusData.Fuel.FuelReservoir;
+                // Conservative mass, DELIBERATELY: fuel rounded up to the next tonne and a full
+                // reservoir assumed, so the figure leans slightly under rather than overstating
+                // reach. This reads ~0.08 LY below the game's own number at a full tank, which
+                // looks like an error but is not - the display is used to plan long-distance
+                // travel, where over-estimating range is how you end up stranded short of a star.
+                // Do not "correct" this to match the HUD; that trade was tried and rejected.
+                var fuel = Math.Ceiling(StatusData.Fuel.FuelMain) + FuelCapacityReserve;
                 var totalMass = UnladenMass + fuel + StatusData.Cargo;
                 var fsdRange = FSDOptimalMass / totalMass
                     * Math.Pow(FSDMaxFuelPerJump / FSDLinearConstant, 1.0 / FSDPowerConstant);
