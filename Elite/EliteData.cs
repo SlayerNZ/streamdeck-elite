@@ -23,18 +23,38 @@ namespace Elite
         // ship-type default on ship change, then refined to the exact game-reported value by JetConeBoost.
         public static double NeutronBoostMultiplier = 4.0;
 
-        // Conservative range trim. The Caspian Explorer's SCO Mk II drive makes our jump-range formula
-        // over-estimate by a flat ~0.9% (measured across boosted + unboosted: 82.1 vs 81.39, 492.7 vs
-        // 488.39 -- same percentage, a base-range error the neutron boost just scales linearly). NO
-        // other ship needs it -- e.g. the Panther Clipper calc lands within 0.06% of in-game (44.163 vs
-        // 44.19), and a blanket trim would push it wrongly low -- so the fixed 0.9% is applied ONLY to
-        // the Caspian. Used on the display range and the Spansh optimal_mass so plotted hops don't
-        // exceed real max range.
-        public const double CaspianRangeTrim = 0.009;
-        private const string CaspianShipType = "explorer_nx";
-        public static bool ShipNeedsRangeTrim =>
-            string.Equals(ShipType, CaspianShipType, StringComparison.OrdinalIgnoreCase);
-        public static double BoostRangeFactor() => ShipNeedsRangeTrim ? 1.0 + CaspianRangeTrim : 1.0;
+        // The SCO Mk II drive ("..._overchargebooster_mkii") does NOT follow the standard
+        // size-derived power constant. Measured in-game across two controlled experiments with
+        // stock, unengineered drives, no Guardian booster, no cargo and varied jump distances:
+        //
+        //   stock plain SCO size 8 : fitted 2.9000 vs predicted 2.900   (12 jumps, R2 = 1.000000)
+        //   stock Mk II    size 8  : fitted 2.5024 vs predicted 2.900   (23 jumps, R2 = 1.000000)
+        //
+        // 191 historical jumps on the engineered Mk II fit 2.5005, so engineering and the Guardian
+        // booster do not affect the exponent -- only the drive variant does. Fitted by regressing
+        // log(FuelUsed) on log(JumpDist x mass) from FSDJump events, where the slope is the power
+        // constant.
+        //
+        // This replaces the old ship-specific "Caspian range trim", a flat 0.9% fudge applied to
+        // explorer_nx that patched the symptom before the cause was known. It only ever corrected
+        // that one hull; any other ship carrying a Mk II over-estimated by ~0.9% with no correction
+        // at all. Fixing the exponent addresses every ship with this drive.
+        private const double ScoMkIIPowerConstant = 2.5;
+
+        // Phantom mass added to every jump-range estimate so the figure always reads slightly
+        // UNDER what the ship can really do. One tonne is worth about 0.06 LY on an 85 LY jump -
+        // negligible for ordinary travel, but it is applied before the neutron multiplier, so a
+        // 6x supercharge turns it into roughly 0.37 LY of headroom where it actually matters.
+        //
+        // A flat tonne was chosen over the alternatives after measuring seven fuel levels in game:
+        //   - rounding fuel up to the tonne produced a SAWTOOTH, swinging 0.06 LY as fuel crossed
+        //     each whole tonne, and combined with assuming a full reservoir the margin faded to
+        //     zero by ~47t and then went POSITIVE - gone exactly when a long trip needs it;
+        //   - a percentage of the fuel is smooth but shrinks with the fuel, so it also dies at the
+        //     bottom of the tank (3% of fuel is worth 0.009 LY at 5t remaining).
+        // A fixed tonne is a slightly LARGER fraction of a lighter ship, so the margin grows a
+        // little as the tank empties: 0.051 LY at a full tank, 0.062 LY near empty.
+        private const double SafetyMassTonnes = 1.0;
         public static double FSDOptimalMass = 0.0;
         public static double FSDMaxFuelPerJump = 0.0;
         public static double FSDLinearConstant = 0.0;
@@ -469,16 +489,18 @@ namespace Elite
             double range;
             if (FSDOptimalMass > 0 && FSDMaxFuelPerJump > 0 && UnladenMass > 0)
             {
-                // Conservative mass: round fuel up to the next tonne and assume a full reservoir, so the
-                // displayed range (and jumps-to-rejoin) leans slightly under rather than overstating reach.
-                var fuel = Math.Ceiling(StatusData.Fuel.FuelMain) + FuelCapacityReserve;
-                var totalMass = UnladenMass + fuel + StatusData.Cargo;
+                // Real mass, plus a deliberate phantom tonne (see SafetyMassTonnes). The figure is
+                // used to plan long-distance travel, where over-estimating range is how you end up
+                // stranded short of a star, so it should always read slightly under the game's own
+                // number. Do not "correct" it to match the HUD - that trade was tried and rejected.
+                var fuel = StatusData.Fuel.FuelMain + StatusData.Fuel.FuelReservoir;
+                var totalMass = UnladenMass + fuel + StatusData.Cargo + SafetyMassTonnes;
                 var fsdRange = FSDOptimalMass / totalMass
                     * Math.Pow(FSDMaxFuelPerJump / FSDLinearConstant, 1.0 / FSDPowerConstant);
-                // Caspian-only conservative trim (see CaspianRangeTrim; 1.0 = no-op for other ships).
-                // Dividing the base here is equivalent to trimming the final boosted range, since
-                // /factor and x boost commute.
-                range = (fsdRange + GuardianFSDBonus) / BoostRangeFactor();
+                // No range trim: the Guardian bonus is a flat additive term the game applies after
+                // the FSD calculation. What used to be trimmed here was the wrong SCO Mk II power
+                // constant (see ScoMkIIPowerConstant).
+                range = fsdRange + GuardianFSDBonus;
             }
             else
             {
@@ -537,7 +559,13 @@ namespace Elite
             else if (classNum.Success && int.TryParse(classNum.Groups[1].Value, out int cn))
                 fsdRating = (char)('A' + (5 - cn)); // 5→A, 4→B, 3→C, 2→D, 1→E
 
-            EliteData.FSDPowerConstant = 2.0 + (fsdSize - 2) * 0.15;
+            // The Mk II variant ignores the size-derived exponent -- see ScoMkIIPowerConstant.
+            // Matched on the item name, so it applies to any ship carrying the drive, not one hull.
+            var isScoMkII = item.IndexOf("overchargebooster_mkii", StringComparison.OrdinalIgnoreCase) >= 0;
+
+            EliteData.FSDPowerConstant = isScoMkII
+                ? ScoMkIIPowerConstant
+                : 2.0 + (fsdSize - 2) * 0.15;
             EliteData.FSDLinearConstant = fsdRating switch { 'A' => 0.012, 'B' => 0.010, 'C' => 0.008, 'D' => 0.010, 'E' => 0.011, _ => 0.012 };
 
             // MaxFuelPerJump: use modifier if available, otherwise back-calculate from MaxJumpRange

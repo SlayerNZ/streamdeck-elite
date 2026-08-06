@@ -446,22 +446,11 @@ namespace Elite.Buttons
 
         private static string FormatJumpRange()
         {
-            double range;
-            if (EliteData.FSDOptimalMass > 0 && EliteData.FSDMaxFuelPerJump > 0 && EliteData.UnladenMass > 0)
-            {
-                var totalMass = EliteData.UnladenMass + EliteData.StatusData.Fuel.FuelMain + EliteData.StatusData.Cargo;
-                var fsdRange = EliteData.FSDOptimalMass / totalMass
-                    * Math.Pow(EliteData.FSDMaxFuelPerJump / EliteData.FSDLinearConstant, 1.0 / EliteData.FSDPowerConstant);
-                var currentRange = fsdRange + EliteData.GuardianFSDBonus;
-                range = EliteData.IsFsdBoosted ? currentRange * EliteData.BoostValue : currentRange;
-            }
-            else
-            {
-                range = EliteData.BaseJumpRange > 0
-                    ? EliteData.BaseJumpRange * (EliteData.IsFsdBoosted ? EliteData.BoostValue : 1.0)
-                    : EliteData.LastJumpDistance;
-            }
-            return $"{range:0.0} LY{(EliteData.IsFsdBoosted ? " ⚡" : "")}";
+            // Shared implementation - see EliteData.GetJumpRange. This was a private copy of the
+            // formula and drifted from it, showing 81.5 where the 3-row button showed 81.4.
+            var range = EliteData.GetJumpRange(true);
+
+            return $"{range:0.00}LY{(EliteData.IsFsdBoosted ? " ⚡" : "")}";
         }
 
         private Color ResolveColor(string infoType, string hex, NeutronPlotSnapshot snapshot = null)

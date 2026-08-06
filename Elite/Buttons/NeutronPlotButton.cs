@@ -355,7 +355,7 @@ namespace Elite.Buttons
         private static string FormatJumpRange()
         {
             var range = EliteData.GetJumpRange(boosted: true);
-            return $"{range:0.0} LY{(EliteData.IsFsdBoosted ? " ⚡" : "")}";
+            return $"{range:0.00}LY{(EliteData.IsFsdBoosted ? " ⚡" : "")}";
         }
 
         private Color ResolveColor(string infoType, string hex, NeutronPlotSnapshot snapshot = null)
