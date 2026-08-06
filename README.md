@@ -15,6 +15,68 @@ This release upgrades the plugin's underlying `EliteJournalReader` library (the 
 
 ---
 
+## New & Update Features (v4.2.0)
+
+### 🔭 🆕 (NEW) Exploration Dial — FSS & DSS
+
+Turns a Stream Deck **+** encoder into a scanner control. Tune the FSS by turning the dial, sweep the band by spinning it, honk by holding the dial in — and see what's actually out there on the touch strip.
+
+The dial sends **the keys you have bound in Elite**, so it follows your own control setup rather than assuming a default layout.
+
+**Assign any function to any of five gestures:** rotate left, rotate right, press the dial, tap the touch strip, or long-press it.
+
+| Group | Functions |
+|---|---|
+| FSS | Tune Left/Right · Stepped Zoom In/Out · Zoom In to Target · Zoom Out · Discovery Scan (honk) · Target Current Signal · Enter/Exit FSS |
+| DSS | Prev/Next Genus (the bio/geo filter) · Toggle Front/Back View · Exit Third Person |
+
+**The touch strip shows bio and geo signal counts** — `3🌿 2🌋` — for a body you've just resolved in the FSS, then falls back to whichever body you're currently at.
+
+**Turning it feels like a dial, not a button.** A single click always moves exactly one step, so you keep fine control next to a signal. Spin it and the key is held down instead, sweeping the band continuously until you stop. Three settings let you dial in the feel on your own hardware:
+
+- **Max Steps / Detent** — 1 disables fast sweeping (right for the DSS genus filter, where you only ever want one item at a time)
+- **Hold Threshold (ms)** — how close together clicks must be to count as a spin rather than deliberate clicking
+- **Release Delay (ms)** — how long after you stop turning before the key is released
+
+**Actions that charge while held** — the Discovery Scan especially — work from the dial press: hold the encoder and it charges, release and it fires. For the touch strip, which has no release to wait for, set **Touch Hold (ms)** to around 1000.
+
+> **NOTE:** bind held actions to a **plain key with no Shift/Ctrl/Alt**. Elite doesn't reliably accept a held modifier chord, so a Discovery Scan bound to something like `Shift-D` won't charge — it will appear to do nothing at all.
+
+---
+
+### 🎛️ ✏️ Updated: UI Navigation Button — Hold Mode & scanner functions
+
+**Hold Mode** lets one button do two jobs. A **tap** still sends exactly the **Presses** count you've configured, so menu buttons land on a precise row. Hold it past the **Hold Threshold** and the key stays down, moving continuously until you let go — ideal for FSS tuning, galaxy map panning and camera movement.
+
+Best left off for **Select** and **Back**, where an accidental hold would repeat-fire them.
+
+The function list also gains an **FSS / DSS** group — tuning, stepped zoom, the honk, the genus filter and front/back view — so scanner controls can be driven from ordinary buttons, not just the dial.
+
+---
+
+### 🚀 🔧 Fixed: Jump range accuracy
+
+Jump range is now calculated **once** and shared by the Neutron Plot (3-row, 2-row and Dial) and Navigation Info buttons. Previously each had its own copy of the formula and they could disagree with one another by around 0.1 LY.
+
+**The Caspian Explorer's SCO Mk II drive is now modelled correctly.** Its frame shift drive doesn't follow the standard size-derived power constant, which made every estimate for that drive read roughly 0.9% high — enough that plotted routes could include a hop just beyond the ship's real reach. The constant was measured in-game with stock, unengineered drives and now applies to **any ship** carrying that drive, replacing a fudge factor that only ever corrected one hull.
+
+Estimates also carry a small deliberate safety margin — about 0.06 LY, scaling to roughly 0.37 LY on a neutron-supercharged jump — so the figure always reads slightly **under** what the ship can really do. Over-estimating range is how you end up stranded short of a star.
+
+Jump range now displays to **two decimal places** (`84.17LY`), because at one decimal the difference was invisible.
+
+---
+
+### 🎨 ✏️ Updated: Optional button images now ship with the plugin
+
+The `Images/Optional` artwork previously lived in the repository only, so anyone installing a release got none of it — awkward for the **Toggle Button**, which needs an "on" and an "off" image to show state and shipped with neither.
+
+All 100+ images are now included in the plugin. After installing you'll find them in
+`%appdata%\Elgato\StreamDeck\Plugins\com.mhwlng.elite.sdPlugin\Images\Optional`, ready to pick from any button's settings.
+
+That folder now also contains **`Wireframe`**, a hand-drawn set in the orange wireframe style of the Elite HUD: toggle pairs for the cargo scoop, hardpoints and landing gear, deploy/recall pairs for the SRV and Nomad SLV, plus camera, free look, galaxy and system map, on foot, neutron star, station and supercruise. Use them freely.
+
+---
+
 ## New & Update Features (v4.1.0)
 
 ### 🚀 🆕 (NEW) Neutron Plot Route
@@ -71,6 +133,8 @@ Each row has its own colour, and a configurable **Boost Color** highlights the J
 Fixed bug:  The Neutron Boost multiplier was accidentally hardcoded to 4x, which didn't work with the Caspian Explorer.  It's now dynamically generated from the journals so the Spansh plotter can accurately calculate your most efficient route.
 
 Fixed bug:  Routes plotted for the **Caspian Explorer** could land just beyond the ship's real reach, leaving you unable to make a jump the route said was fine. A small conservative trim is now applied to the Caspian's range before plotting, so hops stay inside what the ship can actually do. Other ships are unaffected.
+
+> *Superseded in v4.2.0.* That trim was a patch applied before the cause was understood — the real problem was the SCO Mk II drive's power constant, which affected every ship carrying that drive rather than just the Caspian. See **Fixed: Jump range accuracy** above.
 
 📖 **Full walkthrough:** see the [Neutron Plot User Guide](Elite/NeutronPlotGuide.md).
 
