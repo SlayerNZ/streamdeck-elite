@@ -7,19 +7,19 @@ Like macrossmerrell, I'm an explorer.  I needed to make neutron highway plots an
 
 Latest Release: https://github.com/SlayerNZ/streamdeck-elite
 
-## ⚠️ Important — EliteJournalReader Library Upgrade (v4.0.0)
+## ⚠️ Important: EliteJournalReader Library Upgrade (v4.0.0)
 
 **If you've forked this project and added your own buttons or features, please read this before updating.**
 
-This release upgrades the plugin's underlying `EliteJournalReader` library (the piece that reads Elite Dangerous's journal and status files) to the current upstream version, targeting .NET 10. This brings access to newer game data — including flags for Supercruise Overcharge — but it also changes some core APIs that custom buttons commonly plug into. If your fork adds its own buttons, there's a good chance you'll need to update them. Thank you [MagicMau](https://github.com/MagicMau/EliteJournalReader) for all your hard work!
+This release upgrades the plugin's underlying `EliteJournalReader` library (the piece that reads Elite Dangerous's journal and status files) to the current upstream version, targeting .NET 10. This brings access to newer game data - including flags for Supercruise Overcharge - but it also changes some core APIs that custom buttons commonly plug into. If your fork adds its own buttons, there's a good chance you'll need to update them. Thank you [MagicMau](https://github.com/MagicMau/EliteJournalReader) for all your hard work!
 
 ---
 
 ## New & Update Features (v4.2.0)
 
-### 🔭 🆕 (NEW) Exploration Dial — FSS & DSS
+### 🔭 🆕 (NEW) Exploration Dial: FSS & DSS
 
-Turns a Stream Deck **+** encoder into a scanner control. Tune the FSS by turning the dial, sweep the band by spinning it, honk by holding the dial in — and see what's actually out there on the touch strip.
+Turns a Stream Deck **+** encoder into a scanner control. Tune the FSS by turning the dial, sweep the band by spinning it, honk by holding the dial in - and see what's actually out there on the touch strip.
 
 The dial sends **the keys you have bound in Elite**, so it follows your own control setup rather than assuming a default layout.
 
@@ -30,27 +30,27 @@ The dial sends **the keys you have bound in Elite**, so it follows your own cont
 | FSS | Tune Left/Right · Stepped Zoom In/Out · Zoom In to Target · Zoom Out · Discovery Scan (honk) · Target Current Signal · Enter/Exit FSS |
 | DSS | Prev/Next Genus (the bio/geo filter) · Toggle Front/Back View · Exit Third Person |
 
-**The touch strip shows bio and geo signal counts** — `3🌿 2🌋` — for a body you've just resolved in the FSS, then falls back to whichever body you're currently at.
+**The touch strip shows bio and geo signal counts** such as `3🌿 2🌋`, for a body you've just resolved in the FSS, then falls back to whichever body you're currently at.
 
 **Turning it feels like a dial, not a button.** A single click always moves exactly one step, so you keep fine control next to a signal. Spin it and the key is held down instead, sweeping the band continuously until you stop. Three settings let you dial in the feel on your own hardware:
 
-- **Max Steps / Detent** — 1 disables fast sweeping (right for the DSS genus filter, where you only ever want one item at a time)
-- **Hold Threshold (ms)** — how close together clicks must be to count as a spin rather than deliberate clicking
-- **Release Delay (ms)** — how long after you stop turning before the key is released
+- **Max Steps / Detent**: 1 disables fast sweeping (right for the DSS genus filter, where you only ever want one item at a time)
+- **Hold Threshold (ms)**: how close together clicks must be to count as a spin rather than deliberate clicking
+- **Release Delay (ms)**: how long after you stop turning before the key is released
 
-**Actions that charge while held** — the Discovery Scan especially — work from the dial press: hold the encoder and it charges, release and it fires. For the touch strip, which has no release to wait for, set **Touch Hold (ms)** to around 1000.
+**Actions that charge while held**, the Discovery Scan especially, work from the dial press: hold the encoder and it charges, release and it fires. For the touch strip, which has no release to wait for, set **Touch Hold (ms)** to around 1000.
 
-> **NOTE:** bind held actions to a **plain key with no Shift/Ctrl/Alt**. Elite doesn't reliably accept a held modifier chord, so a Discovery Scan bound to something like `Shift-D` won't charge — it will appear to do nothing at all.
+> **NOTE:** bind held actions to a **plain key with no Shift/Ctrl/Alt**. Elite doesn't reliably accept a held modifier chord, so a Discovery Scan bound to something like `Shift-D` won't charge - it will appear to do nothing at all.
 
 ---
 
-### 🎛️ ✏️ Updated: UI Navigation Button — Hold Mode & scanner functions
+### 🎛️ ✏️ Updated: UI Navigation Button - Hold Mode & scanner functions
 
-**Hold Mode** lets one button do two jobs. A **tap** still sends exactly the **Presses** count you've configured, so menu buttons land on a precise row. Hold it past the **Hold Threshold** and the key stays down, moving continuously until you let go — ideal for FSS tuning, galaxy map panning and camera movement.
+**Hold Mode** lets one button do two jobs. A **tap** still sends exactly the **Presses** count you've configured, so menu buttons land on a precise row. Hold it past the **Hold Threshold** and the key stays down, moving continuously until you let go - ideal for FSS tuning, galaxy map panning and camera movement.
 
 Best left off for **Select** and **Back**, where an accidental hold would repeat-fire them.
 
-The function list also gains an **FSS / DSS** group — tuning, stepped zoom, the honk, the genus filter and front/back view — so scanner controls can be driven from ordinary buttons, not just the dial.
+The function list also gains an **FSS / DSS** group - tuning, stepped zoom, the honk, the genus filter and front/back view - so scanner controls can be driven from ordinary buttons, not just the dial.
 
 ---
 
@@ -58,9 +58,9 @@ The function list also gains an **FSS / DSS** group — tuning, stepped zoom, th
 
 Jump range is now calculated **once** and shared by the Neutron Plot (3-row, 2-row and Dial) and Navigation Info buttons. Previously each had its own copy of the formula and they could disagree with one another by around 0.1 LY.
 
-**The Caspian Explorer's SCO Mk II drive is now modelled correctly.** Its frame shift drive doesn't follow the standard size-derived power constant, which made every estimate for that drive read roughly 0.9% high — enough that plotted routes could include a hop just beyond the ship's real reach. The constant was measured in-game with stock, unengineered drives and now applies to **any ship** carrying that drive, replacing a fudge factor that only ever corrected one hull.
+**The Caspian Explorer's SCO Mk II drive is now modelled correctly.** Its frame shift drive doesn't follow the standard size-derived power constant, which made every estimate for that drive read roughly 0.9% high - enough that plotted routes could include a hop just beyond the ship's real reach. The constant was measured in-game with stock, unengineered drives and now applies to **any ship** carrying that drive, replacing a fudge factor that only ever corrected one hull.
 
-Estimates also carry a small deliberate safety margin — about 0.06 LY, scaling to roughly 0.37 LY on a neutron-supercharged jump — so the figure always reads slightly **under** what the ship can really do. Over-estimating range is how you end up stranded short of a star.
+Estimates also carry a small deliberate safety margin - about 0.06 LY, scaling to roughly 0.37 LY on a neutron-supercharged jump - so the figure always reads slightly **under** what the ship can really do. Over-estimating range is how you end up stranded short of a star.
 
 Jump range now displays to **two decimal places** (`84.17LY`), because at one decimal the difference was invisible.
 
@@ -68,7 +68,7 @@ Jump range now displays to **two decimal places** (`84.17LY`), because at one de
 
 ### 🎨 ✏️ Updated: Optional button images now ship with the plugin
 
-The `Images/Optional` artwork previously lived in the repository only, so anyone installing a release got none of it — awkward for the **Toggle Button**, which needs an "on" and an "off" image to show state and shipped with neither.
+The `Images/Optional` artwork previously lived in the repository only, so anyone installing a release got none of it - awkward for the **Toggle Button**, which needs an "on" and an "off" image to show state and shipped with neither.
 
 All 100+ images are now included in the plugin. After installing you'll find them in
 `%appdata%\Elgato\StreamDeck\Plugins\com.mhwlng.elite.sdPlugin\Images\Optional`, ready to pick from any button's settings.
@@ -81,30 +81,30 @@ That folder now also contains **`Wireframe`**, a hand-drawn set in the orange wi
 
 ### 🚀 🆕 (NEW) Neutron Plot Route
 
-The Neutron Plot Route turns your Stream Deck into a heads-up display for the **Neutron Highway** — the explorer's trick of supercharging your Frame Shift Drive at neutron stars to roughly quadruple your jump range and cross the galaxy in a fraction of the jumps.
+The Neutron Plot Route turns your Stream Deck into a heads-up display for the **Neutron Highway**: the explorer's trick of supercharging your Frame Shift Drive at neutron stars to roughly quadruple your jump range and cross the galaxy in a fraction of the jumps.
 
-Plot a route once, then watch your progress on the button as you travel: current and target systems, distance remaining, jumps left, where to refuel, and which stars are neutrons — all advancing automatically every time you jump.
+Plot a route once, then watch your progress on the button as you travel: current and target systems, distance remaining, jumps left, where to refuel, and which stars are neutrons - all advancing automatically every time you jump.
 
 **Two ways to load a route:**
 
-1. **Auto Plot (Spansh) — no file, no typing.** Target any system in the in-game Galaxy Map, then long-press the button. The plugin sends your *live ship build* (FSD, fuel tank, mass, Guardian booster — all read straight from the game) to Spansh's galaxy plotter and loads a fully fuel-aware route. Because it knows your real fuel model, it tells you exactly where you must stop to refuel.
-2. **CSV Import.** Already plotted a route on Spansh's [Galaxy Plotter](https://spansh.co.uk/exact-plotter)? Pick the downloaded `.csv` in the button settings and it loads instantly. *(Use the **Galaxy Plotter** page — it's the same fuel-aware engine Auto Plot uses, and its export includes the refuel and neutron columns the plugin reads. The older neutron-router [`/plotter`](https://spansh.co.uk/plotter) page produces a different CSV.)*
+1. **Auto Plot (Spansh) - no file, no typing.** Target any system in the in-game Galaxy Map, then long-press the button. The plugin sends your *live ship build* (FSD, fuel tank, mass, Guardian booster - all read straight from the game) to Spansh's galaxy plotter and loads a fully fuel-aware route. Because it knows your real fuel model, it tells you exactly where you must stop to refuel.
+2. **CSV Import.** Already plotted a route on Spansh's [Galaxy Plotter](https://spansh.co.uk/exact-plotter)? Pick the downloaded `.csv` in the button settings and it loads instantly. *(Use the **Galaxy Plotter** page - it's the same fuel-aware engine Auto Plot uses, and its export includes the refuel and neutron columns the plugin reads. The older neutron-router [`/plotter`](https://spansh.co.uk/plotter) page produces a different CSV.)*
 
-**Fuel-star intelligence (EDSM):** For your next target the button can show the nearest scoopable (refuel) star and how far it is from your arrival point — e.g. `⛽ 5.6 Ls` — coloured **green** when it's an easy top-up (under 50 Ls). Lookups are fetched once per system from EDSM and cached, so it stays light.
+**Fuel-star intelligence (EDSM):** For your next target the button can show the nearest scoopable (refuel) star and how far it is from your arrival point - e.g. `⛽ 5.6 Ls` - coloured **green** when it's an easy top-up (under 50 Ls). Lookups are fetched once per system from EDSM and cached, so it stays light.
 
 Three display styles to suit your layout:
-- **Neutron Plot (3 info rows)** — three freely-configurable rows of information.
-- **Neutron Plot (2 info rows)** — two rows, each with an automatic label above the value for at-a-glance reading.
-- **Neutron Plot Dial** — for the Stream Deck +; two values on the dial touchscreen.
+- **Neutron Plot (3 info rows)**: three freely-configurable rows of information.
+- **Neutron Plot (2 info rows)**: two rows, each with an automatic label above the value for at-a-glance reading.
+- **Neutron Plot Dial**: for the Stream Deck +; two values on the dial touchscreen.
 
 ![Neutron Plot Button & Dial](Elite/Images/Examples/NeutronPlotButtonExample.png)
 
 **Functions you can assign to a press or long-press:**
-- **Auto Plot (Spansh)** — fetch a fresh fuel-aware route to your targeted system
-- **Initialize Route** — reset the target back to the first jump
-- **Previous System / Next System** — step the target waypoint manually
-- **Copy Current** — copy the target system name to the clipboard (paste straight into the Galaxy Map search)
-- **Clear Route** — remove the active route
+- **Auto Plot (Spansh)**: fetch a fresh fuel-aware route to your targeted system
+- **Initialize Route**: reset the target back to the first jump
+- **Previous System / Next System**: step the target waypoint manually
+- **Copy Current**: copy the target system name to the clipboard (paste straight into the Galaxy Map search)
+- **Clear Route**: remove the active route
 
 **Information values you can display:**
 
@@ -128,13 +128,13 @@ Three display styles to suit your layout:
 
 Each row has its own colour, and a configurable **Boost Color** highlights the Jump Range when you've supercharged.
 
-> **NOTE:** Spansh can only plot to systems it already knows about. If you target an unvisited deep-space system the button will say `DEST UNKNOWN` — target a known or previously-visited waypoint instead.
+> **NOTE:** Spansh can only plot to systems it already knows about. If you target an unvisited deep-space system the button will say `DEST UNKNOWN` - target a known or previously-visited waypoint instead.
 
 Fixed bug:  The Neutron Boost multiplier was accidentally hardcoded to 4x, which didn't work with the Caspian Explorer.  It's now dynamically generated from the journals so the Spansh plotter can accurately calculate your most efficient route.
 
 Fixed bug:  Routes plotted for the **Caspian Explorer** could land just beyond the ship's real reach, leaving you unable to make a jump the route said was fine. A small conservative trim is now applied to the Caspian's range before plotting, so hops stay inside what the ship can actually do. Other ships are unaffected.
 
-> *Superseded in v4.2.0.* That trim was a patch applied before the cause was understood — the real problem was the SCO Mk II drive's power constant, which affected every ship carrying that drive rather than just the Caspian. See **Fixed: Jump range accuracy** above.
+> *Superseded in v4.2.0.* That trim was a patch applied before the cause was understood - the real problem was the SCO Mk II drive's power constant, which affected every ship carrying that drive rather than just the Caspian. See **Fixed: Jump range accuracy** above.
 
 📖 **Full walkthrough:** see the [Neutron Plot User Guide](Elite/NeutronPlotGuide.md).
 
@@ -142,13 +142,13 @@ Fixed bug:  Routes plotted for the **Caspian Explorer** could land just beyond t
 
 ### 🧭 🆕 (NEW) Navigation Info Button
 
-Where the Neutron Plot follows a route *you* planned, the **Navigation Info Button** mirrors the route **the game itself has plotted** — the blue line you set in the Galaxy Map. There's nothing to load: set a route in-game and the button tracks it immediately, updating automatically as you jump and whenever you re-plot.
+Where the Neutron Plot follows a route *you* planned, the **Navigation Info Button** mirrors the route **the game itself has plotted**: the blue line you set in the Galaxy Map. There's nothing to load: set a route in-game and the button tracks it immediately, updating automatically as you jump and whenever you re-plot.
 
 It's a two-row, labelled display purpose-built for everyday A-to-B travel and refuel awareness.
 
 ![Navigation Info Button](Elite/Images/Examples/NavInfoButtonExample.png)
 
-**Information values (choose any two — upper and lower):**
+**Information values (choose any two - upper and lower):**
 
 | Value | Shows |
 |---|---|
@@ -171,9 +171,9 @@ Each row has its own colour, plus a **Boost Color** for the Jump Range.
 
 ### 🎛️ 🆕 (NEW) UI Navigation Button
 
-Building a macro to request docking, deploy an SRV or disembark usually means chaining raw key presses — `W` for up, `S` for down, `Space` to select. That works right up until you remap something, or hand the macro to a friend who has. Then it quietly does the wrong thing.
+Building a macro to request docking, deploy an SRV or disembark usually means chaining raw key presses - `W` for up, `S` for down, `Space` to select. That works right up until you remap something, or hand the macro to a friend who has. Then it quietly does the wrong thing.
 
-The **UI Navigation Button** sends **the key *you* have bound in Elite**, looked up live from your own binds file. Remap your controls and the button follows. Share a multi-action with someone whose layout is nothing like yours and it still does the right thing on their machine. It reads whichever preset you actually have loaded, handles non-US keyboard layouts, and picks up changes the moment you save them in-game — no restart.
+The **UI Navigation Button** sends **the key *you* have bound in Elite**, looked up live from your own binds file. Remap your controls and the button follows. Share a multi-action with someone whose layout is nothing like yours and it still does the right thing on their machine. It reads whichever preset you actually have loaded, handles non-US keyboard layouts, and picks up changes the moment you save them in-game - no restart.
 
 It's built for multi-actions: chain a handful of these to drive any in-game menu.
 
@@ -182,7 +182,7 @@ It's built for multi-actions: chain a handful of these to drive any in-game menu
 | Setting | Does |
 |---|---|
 | **Function** | the menu, panel or map action to send |
-| **Presses** | send it more than once — `Down` ×3 in a single action instead of three |
+| **Presses** | send it more than once - `Down` ×3 in a single action instead of three |
 | **Interval (ms)** | pause between repeats, so the menu can keep up (default 50) |
 | **Condition Check** | *(Advanced)* only act when the game is in a particular state |
 | **Sound** | optional `.wav` on press |
@@ -192,20 +192,20 @@ It's built for multi-actions: chain a handful of these to drive any in-game menu
 | Group | Includes |
 |---|---|
 | Menu Navigation | Up · Down · Left · Right · Select · Back · Toggle · Next/Prev Panel · Next/Prev Page |
-| Panels — Ship | UI Focus · Nav · Systems · Comms · Role, plus "open only" variants that won't close a panel that's already up |
-| Panels — SRV | the SRV equivalents, which are separately bindable in Elite |
-| Maps | Galaxy Map · System Map — ship, SRV and on-foot variants |
+| Panels - Ship | UI Focus · Nav · Systems · Comms · Role, plus "open only" variants that won't close a panel that's already up |
+| Panels - SRV | the SRV equivalents, which are separately bindable in Elite |
+| Maps | Galaxy Map · System Map - ship, SRV and on-foot variants |
 | Galaxy Map Camera | move · zoom · pitch · yaw |
 
-**Condition Check — stop a macro firing at the wrong moment.**
+**Condition Check - stop a macro firing at the wrong moment.**
 
 Set a condition and the button does nothing unless it's true. Put `In main ship` on every step of a Deploy SRV macro and pressing it on foot is simply ignored, instead of firing menu keys into whatever happens to be on screen.
 
 There are **78 conditions**, each available in both directions (`Docked` / `Not docked`), grouped as **Vehicle**, **Flight state**, **Ship configuration**, **Interface focus**, **Hazards** and **Crew**.
 
-> **NOTE:** Stream Deck gives a plugin no way to *cancel* the remaining steps of a multi-action. The condition doesn't stop the macro — it makes each guarded step do nothing, so the macro runs harmlessly to the end. Put the same condition on every step.
+> **NOTE:** Stream Deck gives a plugin no way to *cancel* the remaining steps of a multi-action. The condition doesn't stop the macro - it makes each guarded step do nothing, so the macro runs harmlessly to the end. Put the same condition on every step.
 
-> **NOTE:** If a function isn't bound to your keyboard at all, there's no key to send and nothing happens. Elite lets you bind most of these to a HOTAS instead — if a step seems to do nothing, check it has a keyboard binding (primary *or* secondary).
+> **NOTE:** If a function isn't bound to your keyboard at all, there's no key to send and nothing happens. Elite lets you bind most of these to a HOTAS instead - if a step seems to do nothing, check it has a keyboard binding (primary *or* secondary).
 
 ---
 ## New & Updated Features (v4.0.0)
@@ -217,21 +217,21 @@ This project now incorporates the latest Odyssey Flags/Flags2 events!
 - Build environment bump, using a new Newtonsoft.Json package for .NET 10.
 
 ### 🧑‍🚀 🆕 (NEW) On Foot Exploration Button
-A cycling on-foot status button for surface exploration. Only active while on foot on a planet surface — automatically shows an "Inactive" image the rest of the time (in your ship, in a station, etc.).
+A cycling on-foot status button for surface exploration. Only active while on foot on a planet surface - automatically shows an "Inactive" image the rest of the time (in your ship, in a station, etc.).
 
 ![On Foot Button Example](https://github.com/macrossmerrell/streamdeck-elite/blob/b8ddf42be943f6240e54219dfcef30688d53d651/Elite/Images/Examples/Onfootbutton.png)
 
 **Displays (6 configurable options):**
-- **Oxygen** — current suit oxygen level as a percentage
-- **Health** — current suit health as a percentage
-- **Temperature** — live ambient temperature reading in Kelvin
-- **Gravity** — live gravity reading in g at your current location
-- **Atmosphere** — shows whether the local atmosphere is breathable
-- **Thermal Status** — shows your current thermal state: Safe, Cold, Very Cold, Hot, or Very Hot
+- **Oxygen**: current suit oxygen level as a percentage
+- **Health**: current suit health as a percentage
+- **Temperature**: live ambient temperature reading in Kelvin
+- **Gravity**: live gravity reading in g at your current location
+- **Atmosphere**: shows whether the local atmosphere is breathable
+- **Thermal Status**: shows your current thermal state: Safe, Cold, Very Cold, Hot, or Very Hot
 
 **Cycling behaviour:**
 - Pressing the button advances to the next enabled option (wraps back to the start)
-- **Auto Rotate** mode advances through enabled options automatically on a configurable timer (1–120 seconds)
+- **Auto Rotate** mode advances through enabled options automatically on a configurable timer (1-120 seconds)
 - Button starts on Oxygen by default
 
 **Every option is independently configurable - Can be used to create multiple buttons for static readouts:**
@@ -242,22 +242,22 @@ A cycling on-foot status button for surface exploration. Only active while on fo
 - Bold text toggle
 
 **Oxygen & Health warnings:**
-- Each has its own warning color *and* its own warning image, triggered automatically by the game's own LowOxygen/LowHealth flags — the button can visually transform (not just change color) the moment either drops critical
+- Each has its own warning color *and* its own warning image, triggered automatically by the game's own LowOxygen/LowHealth flags - the button can visually transform (not just change color) the moment either drops critical
 - Falls back to the normal image if no warning image is set
 
-**Atmosphere — grouped by state:**
+**Atmosphere - grouped by state:**
 - Two fully independent states: **Breathable** and **No Oxygen**
 - Each state has its own text, its own image, and its own color, grouped together in settings so it's clear which belongs to which
 - The correct state is detected automatically and updates live as you move between locations
 
-**Thermal Status — grouped by state:**
+**Thermal Status - grouped by state:**
 - Five fully independent states: **Safe, Cold, Very Cold, Hot, Very Hot**
-- Each state has its own label text, its own image, its own label color, *and* its own temperature color — so both the state name and the live temperature reading can be color-matched (or contrasted) to whichever image is showing
+- Each state has its own label text, its own image, its own label color, *and* its own temperature color - so both the state name and the live temperature reading can be color-matched (or contrasted) to whichever image is showing
 - The state name is shown as the label (position configurable, defaults to Very Top); the live temperature reading (`123°K` format) is shown as the value below it (position configurable, defaults to Edge)
 - Falls back to the Safe-state image for any state that doesn't have its own image set
 
 **Additional settings:**
-- Inactive Image — shown whenever you're not on foot on a planet surface
+- Inactive Image - shown whenever you're not on foot on a planet surface
 - Click sound
 
 ### 🗺️ 🆕 (NEW) Advanced Route Button
@@ -266,20 +266,20 @@ A cycling route information button designed for long-distance exploration. Displ
 ![Advanced Routing Button Example](https://github.com/macrossmerrell/streamdeck-elite/blob/b8ddf42be943f6240e54219dfcef30688d53d651/Elite/Images/Examples/AdvancedRouteButton.png)
 
 **Displays (6 configurable options):**
-- **Jumps Remaining** — whole number of jumps left in the active route
-- **Destination** — total light year distance from your current position through every remaining waypoint to your final destination
-- **Next System** — straight-line distance in light years to the next system in your route
-- **Trip Progress** — percentage of the route completed, based on jumps done vs. total jumps when the route was plotted
-- **Fuel Status** — current main tank fuel level in tons
-- **Jump Range** — estimated current jump range in light years, calculated from your ship's base range and current fuel/cargo mass
+- **Jumps Remaining**: whole number of jumps left in the active route
+- **Destination**: total light year distance from your current position through every remaining waypoint to your final destination
+- **Next System**: straight-line distance in light years to the next system in your route
+- **Trip Progress**: percentage of the route completed, based on jumps done vs. total jumps when the route was plotted
+- **Fuel Status**: current main tank fuel level in tons
+- **Jump Range**: estimated current jump range in light years, calculated from your ship's base range and current fuel/cargo mass
 
 **Cycling behaviour:**
 - Pressing the button advances to the next enabled option (wraps back to the start)
-- **Auto Rotate** mode advances through enabled options automatically on a configurable timer (1–120 seconds)
+- **Auto Rotate** mode advances through enabled options automatically on a configurable timer (1-120 seconds)
 - Button starts on Jumps Remaining by default
 
 **Persistence:**
-- Trip Progress is saved to disk and survives plugin and game restarts — progress is correctly restored even after relaunching and reopening the Galaxy Map mid-trip
+- Trip Progress is saved to disk and survives plugin and game restarts - progress is correctly restored even after relaunching and reopening the Galaxy Map mid-trip
 - Route waypoints and Jump Range baseline are backfilled from your journal files on startup, so all options display correct values immediately without needing to replot your route or visit Outfitting
 
 **Each option is independently configurable - Can be used to create multiple buttons for static readouts:**
@@ -291,7 +291,7 @@ A cycling route information button designed for long-distance exploration. Displ
 - Bold text toggle
 
 **Additional settings:**
-- No Route Image — shown when no route is active
+- No Route Image - shown when no route is active
 - Click sound and disabled sound
 
 > **Note:** Jump Range is an estimate based on your ship's unladen mass and base jump range, scaled by current fuel and cargo weight. It updates in near real-time as you burn fuel. It does not account for FSD engineering modifiers, but it's close enough :smiley:.
@@ -304,8 +304,8 @@ Replaces the old Ship Status Button (now deprecated) with a fully customizable v
 Supercruise Charging, Supercruise Activation, Supercruise (Active), Supercruise Overcharge, Supercruise Assist, Normal Space, Hyperspace Charging, Hyperspace Jump, Fuel Scooping, Planet Approach, Orbital Cruise, Glide/Deorbit, Planetary Flight, Landed, Liftoff, Leaving Planet, No-Fire Zone, Station Approach, Docked at Station, On Foot In Station, and Station Interior.
 
 **New this version:**
-- Supercruise Overcharge and Supercruise Assist are now tracked as their own states — while either is active, the button shows whatever you've configured for it instead of plain Supercruise, and drops back the moment it ends.
-- Not Active Image — a global fallback image shown whenever the current state doesn't have its own image configured, so the button never falls back to a blank/generic Stream Deck key.
+- Supercruise Overcharge and Supercruise Assist are now tracked as their own states - while either is active, the button shows whatever you've configured for it instead of plain Supercruise, and drops back the moment it ends.
+- Not Active Image - a global fallback image shown whenever the current state doesn't have its own image configured, so the button never falls back to a blank/generic Stream Deck key.
 
 **Settings per state:**
 - Image (optional)
@@ -314,10 +314,10 @@ Supercruise Charging, Supercruise Activation, Supercruise (Active), Supercruise 
 - Bold (applies to both text fields for that state)
 
 **Bug fixes carried over from the original Ship Status Button:**
-- Station Approach was previously unreachable (always shadowed by No-Fire Zone) — fixed so it displays correctly once docking is granted.
+- Station Approach was previously unreachable (always shadowed by No-Fire Zone) - fixed so it displays correctly once docking is granted.
 - Fixed a case where climbing away from a planet without a full landing/liftoff cycle (e.g. pulling up straight out of Planet Approach) would incorrectly show Supercruise (Active) instead of Leaving Planet.
 
-### ✏️ Updated: Planet Info Button — Atmosphere Display
+### ✏️ Updated: Planet Info Button - Atmosphere Display
 
 The atmosphere display on the Planet Info button has been improved to handle a wider range of atmosphere types more accurately.
 
@@ -345,7 +345,7 @@ Added dictionary entries for several rare atmosphere types that previously fell 
 
 The old `(Deprecated) Hyperspace Button` has been removed from the plugin entirely. It's been superseded by the **Ship Status Button** (and now the new **Odyssey Ship Status Button**), which cover the same states more reliably.
 
-If you still have this button placed on a Stream Deck profile, it will show up as unrecognized/blank after updating — just remove it and replace it with the Ship Status or Odyssey Ship Status button instead.
+If you still have this button placed on a Stream Deck profile, it will show up as unrecognized/blank after updating - just remove it and replace it with the Ship Status or Odyssey Ship Status button instead.
 
 ## New & Update Features (v3.2.0)
 
@@ -354,19 +354,19 @@ Displays your current heading (top) and altitude (bottom) while flying near a pl
 Heading is shown in degrees (e.g. 270°), matching the compass reading in the ED HUD.
 Altitude auto-scales based on height:
 
-Below 3,000m — displays in meters (e.g. 1250m)
-At or above 3,000m — displays in kilometers (e.g. 12.4km)
+Below 3,000m - displays in meters (e.g. 1250m)
+At or above 3,000m - displays in kilometers (e.g. 12.4km)
 
 The button only activates when the game reports a valid planetary position, so it stays blank in deep space or while docked.
 Settings:
 
-Near Planet Image — background image shown when planetary data is active
-Not Active Image — background image shown when no planetary data is available
-Heading Color — text color for the heading display
-Heading Position — vertical position of the heading text on the button
-Altitude Color — text color for the altitude display
-Altitude Position — vertical position of the altitude text on the button
-Bold — toggle bold text on or off
+Near Planet Image - background image shown when planetary data is active
+Not Active Image - background image shown when no planetary data is available
+Heading Color - text color for the heading display
+Heading Position - vertical position of the heading text on the button
+Altitude Color - text color for the altitude display
+Altitude Position - vertical position of the altitude text on the button
+Bold - toggle bold text on or off
 
  ![Heading and Altitude Example](https://github.com/macrossmerrell/streamdeck-elite/blob/59a524d1a1d7b0db09d36c955ec8f0ab7fa6cacd/Elite/Images/Examples/altandhead.png)
 
@@ -374,19 +374,19 @@ Bold — toggle bold text on or off
 Added missing features to the original Static Button:
 
 **Combat group:**
-- Shield Cell — Activates a shield cell bank
-- Deploy Heatsink — Ejects a heatsink to shed heat instantly
-- Chaff — Fires a chaff launcher to break missile lock
+- Shield Cell - Activates a shield cell bank
+- Deploy Heatsink - Ejects a heatsink to shed heat instantly
+- Chaff - Fires a chaff launcher to break missile lock
 
 **Ship group:**
-- Silent Running — Toggles silent running on/off
+- Silent Running - Toggles silent running on/off
 
 Note: Silent Running also appears in the Toggles group with explicit ON and OFF variants if you prefer directional control over a toggle.
 
 ## New & Update Features (v3.1.0)
 
 ### 🔭 🆕 (NEW) Galaxy Search Button
-Opens a web browser to an external database page for your current location. Automatically detects context — docked at a station, approaching a body, or just flying through a system — and opens the most relevant page.
+Opens a web browser to an external database page for your current location. Automatically detects context - docked at a station, approaching a body, or just flying through a system - and opens the most relevant page.
 Priority logic:
 
 Docked at a station → opens the station page
@@ -414,18 +414,18 @@ Scan Progress
 Once you take your first biological sample, the button displays the genus (and species once identified) and begins tracking your distance from the scan point. Three pip indicators show your progress through the three-scan sequence at a glance.
 
 **Distance Tracking:**
-The meter displays how far you are from the nearest scan point, starting at 0m and counting up as you move away. If you change direction the meter counts back down. Once you've taken your second sample, both scan locations are tracked simultaneously — if you drift back toward either previous scan point the meter will count down toward it, warning you that you may be entering an overlapping colony range.
+The meter displays how far you are from the nearest scan point, starting at 0m and counting up as you move away. If you change direction the meter counts back down. Once you've taken your second sample, both scan locations are tracked simultaneously - if you drift back toward either previous scan point the meter will count down toward it, warning you that you may be entering an overlapping colony range.
 
 **Zone Indicators:**
 The button background changes across four configurable zones based on how much of the colony range you've covered from the nearest scan point:
 
-Zone A (0–20%) — Too close, keep moving
-Zone B (21–70%) — Moving away
-Zone C (71–99%) — Almost far enough
-Zone D (≥100%) — Ready to scan, meter clears
+Zone A (0-20%) - Too close, keep moving
+Zone B (21-70%) - Moving away
+Zone C (71-99%) - Almost far enough
+Zone D (≥100%) - Ready to scan, meter clears
 
 **Persistence:**
-The button stays active across all game states — on foot, in your ship, in an SRV — so you can monitor your position while flying back to land or repositioning between samples. Scan state and coordinates are restored automatically when the Stream Deck software restarts, even across game sessions, so you won't lose your place mid-sequence. State clears automatically when organic data is sold.
+The button stays active across all game states - on foot, in your ship, in an SRV - so you can monitor your position while flying back to land or repositioning between samples. Scan state and coordinates are restored automatically when the Stream Deck software restarts, even across game sessions, so you won't lose your place mid-sequence. State clears automatically when organic data is sold.
 
 **Customization:**
 Each zone has fully configurable background images, text colors, text positions, and pip appearance, giving you complete freedom to design the button around your own artwork and layout preferences.
@@ -449,7 +449,7 @@ Each zone has fully configurable background images, text colors, text positions,
 ## New & Update Features (v2.9.0)
 
 ### 🆕 Navigation Target Info Button
-After completing a System Scan, the button displays information on a currently selected planet — including additional notificiations on landable planets that have scannable bioligical or geological features, along with notifying if terraformable.
+After completing a System Scan, the button displays information on a currently selected planet - including additional notificiations on landable planets that have scannable bioligical or geological features, along with notifying if terraformable.
 
 - Supports Active (targeted) and Inactive (no target) background images
 - Supports any text color for both Planet Type and Biology / Geology / Terrafromable text.
@@ -457,7 +457,7 @@ After completing a System Scan, the button displays information on a currently s
 - Provides option for bold text
 
 ### 🆕 Latitude & Longitude Button
-Displays current planetary Latitude and Longitude in Ship, SRV, Fighter, and on foot — updates when Elite outputs new coordinates.
+Displays current planetary Latitude and Longitude in Ship, SRV, Fighter, and on foot - updates when Elite outputs new coordinates.
 
 - Supports Near Planet and Not Active background images
 - Supports any text color for both Latitude and Longitude informational text
@@ -482,7 +482,7 @@ Displays the current flight state of your ship as a single image that automatica
 - Planet Approach
 - Orbital Cruise
 - Glide / Deorbiting
-- **Leaving Planet** *(new — triggers after LeaveBody event, bounces with Planet Approach based on altitude)*
+- **Leaving Planet** *(new - triggers after LeaveBody event, bounces with Planet Approach based on altitude)*
 - Planetary Flight
 - Landed
 - Liftoff *(displays for 2.5 seconds after liftoff)*
@@ -491,7 +491,7 @@ Displays the current flight state of your ship as a single image that automatica
 - Docked at Station (beta)
 - Station Interior / On Foot in Station (beta)
 
-The button intelligently handles the full departure and approach sequence — including orbital cruise on the way up, leaving planet after clearing the orbital altitude, and correctly bouncing between Leaving Planet and Planet Approach if you change direction. Works whether you physically lifted off from the surface or just flew up from planetary flight.
+The button intelligently handles the full departure and approach sequence - including orbital cruise on the way up, leaving planet after clearing the orbital altitude, and correctly bouncing between Leaving Planet and Planet Approach if you change direction. Works whether you physically lifted off from the surface or just flew up from planetary flight.
 
 ---
 
@@ -503,17 +503,17 @@ Displays real-time planetary gravity based on your current altitude using the in
 - Shows live altitude-adjusted gravity when near a planet (`HasLatLong`)
 - Shows cached surface gravity when targeting a scanned planet from supercruise
 - Falls back to `?g` for unscanned planets
-- Planet scan data is backfilled from recent journal files on startup (bast 10)  — works even after a fresh game session
+- Planet scan data is backfilled from recent journal files on startup (bast 10) - works even after a fresh game session
 
 ---
 
 ### 🆕 Planet Info Button
 Displays atmosphere type and surface temperature for the current planet.
 
-- **Atmosphere** — full capitalized name, split across two lines for multi-word types (e.g. CARBON / DIOXIDE)
-- **Temperature** — surface temperature in Kelvin from scan data; switches to live real-time temperature when on foot
-- Separate color, position, and bold settings for atmosphere and temperature text — allows for any custom background image
-- Auto-scaling text fills the button width for maximum readability — limited size to avoid over-sizing
+- **Atmosphere**: full capitalized name, split across two lines for multi-word types (e.g. CARBON / DIOXIDE)
+- **Temperature**: surface temperature in Kelvin from scan data; switches to live real-time temperature when on foot
+- Separate color, position, and bold settings for atmosphere and temperature text - allows for any custom background image
+- Auto-scaling text fills the button width for maximum readability - limited size to avoid over-sizing
 
 **Supported atmosphere types:** Silicate Vapour, Oxygen, Ammonia, Nitrogen, Methane, Argon, Water, Sulphur Dioxide, Neon, Carbon Dioxide, Helium, Metallic Vapour, and more
 
@@ -523,19 +523,19 @@ Displays atmosphere type and surface temperature for the current planet.
 A single button that monitors multiple danger conditions simultaneously and cycles through active alerts every 2 seconds.
 
 **Monitored alerts (in priority order):**
-1. **Self Destruct** — 30s timer
-2. **Cockpit Breached** — 20s timer
-3. **Systems Shutdown** — 10s timer
-4. **Jet Cone Damage** — 5s timer
-5. **Heat Warning** — clears when overheating flag clears
-6. **Heat Damage** — 5s timer, clears when overheating ends
-7. **Hull Damage** — 5s timer
-8. **Shields Down** — clears when shields restore
-9. **Under Attack** — 4s timer
-10. **Being Interdicted** — clears when interdiction ends
-11. **Is In Danger** — clears when danger flag clears
-12. **Low Fuel** — clears when fuel restored
-13. **Docking Denied** — 5s timer
+1. **Self Destruct**: 30s timer
+2. **Cockpit Breached**: 20s timer
+3. **Systems Shutdown**: 10s timer
+4. **Jet Cone Damage**: 5s timer
+5. **Heat Warning**: clears when overheating flag clears
+6. **Heat Damage**: 5s timer, clears when overheating ends
+7. **Hull Damage**: 5s timer
+8. **Shields Down**: clears when shields restore
+9. **Under Attack**: 4s timer
+10. **Being Interdicted**: clears when interdiction ends
+11. **Is In Danger**: clears when danger flag clears
+12. **Low Fuel**: clears when fuel restored
+13. **Docking Denied**: 5s timer
 
 Each alert has its own configurable image, text, text color, text position, bold setting, and timeout duration. Image must be set for alerts to work.
 **Press the button to manually dismiss all active alerts.**
@@ -550,7 +550,7 @@ When no alerts are active, the button shows a configurable default state (image 
 - Vertical position adjustment to better fit custom button graphics
 
 ### ✏️ Updated: Toggle Button
-- Added **Genetic Sampler** option — shows button state change when the sampler is deployed or stowed, useful for explorers
+- Added **Genetic Sampler** option - shows button state change when the sampler is deployed or stowed, useful for explorers
 
 ---
 ### New Explorer Buttons Information
@@ -565,10 +565,10 @@ When no alerts are active, the button shows a configurable default state (image 
 
 A set of custom button images is included in the `Images/Optional` directory, created using [Andechs75's Elite Dangerous icon PowerPoint template](https://github.com/Andechs75/Elite-Dangerous-Streamdeck-Icons/tree/master). These cover the Ship Status states and other common functions. Feel free to use, modify, or create your own using the same template.
 
-`Images/Optional/Wireframe` adds a hand-drawn set in the orange wireframe style of the Elite HUD — toggle pairs for the cargo scoop, hardpoints and landing gear, deploy/recall pairs for the SRV and Nomad SLV, plus camera, free look, galaxy and system map, on foot, neutron star, station and supercruise. Use them freely.
+`Images/Optional/Wireframe` adds a hand-drawn set in the orange wireframe style of the Elite HUD - toggle pairs for the cargo scoop, hardpoints and landing gear, deploy/recall pairs for the SRV and Nomad SLV, plus camera, free look, galaxy and system map, on foot, neutron star, station and supercruise. Use them freely.
 
 **These images now ship with the plugin.** After installing you'll find them in
-`%appdata%\Elgato\StreamDeck\Plugins\com.mhwlng.elite.sdPlugin\Images\Optional`, ready to pick from the button settings — handy for the **Toggle Button**, which needs an "on" and an "off" image to show state.
+`%appdata%\Elgato\StreamDeck\Plugins\com.mhwlng.elite.sdPlugin\Images\Optional`, ready to pick from the button settings - handy for the **Toggle Button**, which needs an "on" and an "off" image to show state.
 
 > **Tip:** Use the PowerPoint template to design a button, take a snip, then crop in your favourite paint program to fit your Stream Deck button size.
 
@@ -582,13 +582,13 @@ The plugin supports automatic Stream Deck profile switching based on game state.
 
 Ignore These Older Instructions:
 ~~Create profiles in the Stream Deck software with these exact names:
-`Elite Main` — default ship profile
-`Elite OnFoot` — switches when on foot in Odyssey
-`Elite InSRV` — switches when SRV is deployed
-`Elite InFighter` — switches when in a fighter
+`Elite Main` - default ship profile
+`Elite OnFoot` - switches when on foot in Odyssey
+`Elite InSRV` - switches when SRV is deployed
+`Elite InFighter` - switches when in a fighter
 Export each profile from Stream Deck software as a `.streamDeckProfile` file
 Place the exported files in the `Profiles` folder inside the plugin directory
-Reinstall the plugin — Stream Deck will prompt to import the profiles~~
+Reinstall the plugin - Stream Deck will prompt to import the profiles~~
 
 > **Note:** Profile files are device-specific and tied to your hardware UUID. They cannot be shared universally, which is why this folder ships empty. This is an advanced setup for users who want it.
 
@@ -626,7 +626,7 @@ file not found C:\Users\xxx\AppData\Local\Frontier Developments\Elite Dangerous\
 
 If you see this, try running `StreamDeck.exe` as administrator.
 
-**All bindings must be 'custom'** — this happens automatically once you make at least one on-foot keyboard binding. Default binding names will cause the plugin to not work correctly.
+**All bindings must be 'custom'**: this happens automatically once you make at least one on-foot keyboard binding. Default binding names will cause the plugin to not work correctly.
 
 ---
 
@@ -750,12 +750,12 @@ This plugin only works with keyboard bindings. When there is only a binding to a
 
 ## Credits & Thanks
 
-- [mhwlng/streamdeck-elite](https://github.com/mhwlng/streamdeck-elite) — original plugin
-- [DrFr33ze/streamdeck-elite](https://github.com/DrFr33ze/streamdeck-elite) — .NET 10 conversion and Neo support
+- [mhwlng/streamdeck-elite](https://github.com/mhwlng/streamdeck-elite) - original plugin
+- [DrFr33ze/streamdeck-elite](https://github.com/DrFr33ze/streamdeck-elite) - .NET 10 conversion and Neo support
 - [BarRaider/streamdeck-tools](https://github.com/BarRaider/streamdeck-tools)
 - [MagicMau/EliteJournalReader](https://github.com/MagicMau/EliteJournalReader)
 - [ishaaniMittal/inputsimulator](https://github.com/ishaaniMittal/inputsimulator)
-- [Andechs75 — Elite Dangerous Stream Deck Icons](https://github.com/Andechs75/Elite-Dangerous-Streamdeck-Icons/tree/master) — fantastic button icon set and PowerPoint template
+- [Andechs75 - Elite Dangerous Stream Deck Icons](https://github.com/Andechs75/Elite-Dangerous-Streamdeck-Icons/tree/master) - fantastic button icon set and PowerPoint template
 - [nerdordie.com](https://nerdordie.com/product/stream-deck-key-icons/)
 
 Also see companion application for Logitech Flight Instrument Panel and VR:

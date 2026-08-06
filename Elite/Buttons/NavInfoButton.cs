@@ -242,7 +242,7 @@ namespace Elite.Buttons
                 case "jumpRange":           return "RANGE";
                 case "fuelMain":            return "FUEL";
                 case "currentSystem":       return "CURRENT";
-                case "jumpSummary":         return "JUMPS";
+                case "jumpSummary":         return "SUMMARY";
                 case "targetSystem":        return "TARGET";
                 case "destinationSystem":   return "DEST SYS";
                 case "hopDistance":         return "TGT DIST";
