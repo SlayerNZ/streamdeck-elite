@@ -246,7 +246,8 @@ namespace Elite.Buttons
             // existing route, which is exactly when the old !IsLoaded guard hid it.
             if (!string.IsNullOrEmpty(snapshot.SpanshError))
             {
-                DrawInZone(graphics, width, snapshot.SpanshError, 86, 66, Color.Red, 28);
+                DrawInZone(graphics, width, snapshot.SpanshError, 86, 66,
+                    snapshot.SpanshMessageIsNotice ? Color.Yellow : Color.Red, 28);
                 return;
             }
 

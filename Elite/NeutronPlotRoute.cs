@@ -68,6 +68,10 @@ namespace Elite
         public bool IsSpanshRoute { get; set; }
         public string SpanshError { get; set; } = string.Empty;
 
+        // True when SpanshError holds an informational notice rather than a failure, so the buttons
+        // can draw it yellow instead of red.
+        public bool SpanshMessageIsNotice { get; set; }
+
         // Nearest scoopable star to the target system, in light-seconds (Phase 2 EDSM enrichment).
         // double.NaN = not yet looked up; -1 = looked up, none found; >= 0 = nearest scoopable distance.
         public double ScoopableLs { get; set; } = double.NaN;
@@ -141,7 +145,11 @@ namespace Elite
         // the pilot is trying to fly.
         private static readonly TimeSpan SpanshNoticeDisplay = TimeSpan.FromSeconds(8);
 
-        // How long the current message stays up, set per message by SetSpanshError.
+        // Whether the current message is an informational notice (yellow, brief) or a failure
+        // (red, long). Set together with the text so severity and lifetime never disagree.
+        private static bool spanshIsNotice;
+
+        // How long the current message stays up, set per message by SetSpanshError/SetSpanshNotice.
         private static TimeSpan spanshErrorHold = TimeSpan.FromSeconds(60);
         private static CancellationTokenSource spanshCts;
 
@@ -609,6 +617,7 @@ namespace Elite
                 IsPlotting = isPlotting,
                 IsSpanshRoute = state.IsSpanshRoute,
                 SpanshError = (DateTime.UtcNow - spanshErrorAt) < spanshErrorHold ? spanshError : string.Empty,
+                SpanshMessageIsNotice = spanshIsNotice,
             };
 
             if (Waypoints.Count == 0)
@@ -853,7 +862,7 @@ namespace Elite
                     form["destination"] = destination.ToString(CultureInfo.InvariantCulture);
                     pendingAppend = trueDest;
                     pendingAppendDistance = near.Distance;
-                    SetSpanshError($"DEST +{near.Distance:0} LY", SpanshNoticeDisplay);
+                    SetSpanshNotice($"DEST +{near.Distance:0} LY");
                 }
 
                 // ORIGIN unknown: our own coordinates are always known, so no in-game route needed.
@@ -888,7 +897,7 @@ namespace Elite
 
                     source = nearOrigin.Id64;
                     form["source"] = source.ToString(CultureInfo.InvariantCulture);
-                    SetSpanshError($"ORIG +{nearOrigin.Distance:0} LY", SpanshNoticeDisplay);
+                    SetSpanshNotice($"ORIG +{nearOrigin.Distance:0} LY");
                 }
 
                 using (var content = new FormUrlEncodedContent(form))
@@ -1035,15 +1044,27 @@ namespace Elite
         }
 
         /// <summary>
-        /// Show a message on the plot buttons. Pass a duration for informational notices; the
-        /// default is the long error window, because a real failure needs acting on and must not
-        /// vanish before it is noticed.
+        /// A failure the pilot has to act on. Red, and held long enough that it cannot be missed
+        /// on a deck you only glance at.
         /// </summary>
-        private static void SetSpanshError(string message, TimeSpan? duration = null)
+        private static void SetSpanshError(string message)
         {
             spanshError = message;
             spanshErrorAt = DateTime.UtcNow;
-            spanshErrorHold = duration ?? SpanshErrorDisplay;
+            spanshErrorHold = SpanshErrorDisplay;
+            spanshIsNotice = false;
+        }
+
+        /// <summary>
+        /// Something worth knowing, but nothing failed - a substituted endpoint, say. Yellow and
+        /// brief, so it does not sit over a route the pilot is trying to fly.
+        /// </summary>
+        private static void SetSpanshNotice(string message)
+        {
+            spanshError = message;
+            spanshErrorAt = DateTime.UtcNow;
+            spanshErrorHold = SpanshNoticeDisplay;
+            spanshIsNotice = true;
         }
 
         private static void CancelSpanshPlot()
