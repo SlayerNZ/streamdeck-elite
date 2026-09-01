@@ -41,6 +41,32 @@ namespace Elite
         // at all. Fixing the exponent addresses every ship with this drive.
         private const double ScoMkIIPowerConstant = 2.5;
 
+        // The Mk II also ignores the rating-derived linear constant. A-rated drives use 0.012, but
+        // the real figure for this variant is ~8% lower. Established 2026-09-01 from two
+        // independent directions that agree:
+        //
+        //   1. The game itself states the cap. Targeting a star just out of range gives
+        //      "Jump exceeds drive fuel use of 6.80 units". Our back-calculation produced 7.379,
+        //      8.5% high, because it was derived using the wrong linear constant.
+        //   2. Four real jumps (one unboosted, three neutron) fit 0.01128-0.01133 when fuel is
+        //      computed on distance MINUS the Guardian bonus, which is free range that costs no
+        //      fuel. The range formula independently requires maxfuel/linear = 614.28, which holds
+        //      at both 128t and 35.3t, so with the stated 6.80 cap the constant must be 0.01107.
+        //      Those two agree to within 2%.
+        //
+        // Why the old values still gave an accurate RANGE: range depends only on the RATIO
+        // maxfuel/linear, and 7.379/0.012 = 614.93 against a required 614.28, just 0.1% out. Fuel
+        // depends on the absolute values, so it was 8% high - which is exactly how much Spansh was
+        // over-predicting our burn (measured 8.09% across four jumps), making it think we were
+        // lighter than we are and plot hops fractionally out of reach.
+        //
+        // MaxFuelPerJump is back-calculated from range for this drive and scales with the linear
+        // constant, so correcting this one value self-corrects the cap to ~6.80 as well.
+        //
+        // Note the July investigation rejected subtracting the Guardian bonus for fuel, but it was
+        // fitting the exponent at the same time; with the exponent now known to be 2.5, it holds.
+        private const double ScoMkIILinearConstant = 0.01107;
+
         // Phantom mass added to every jump-range estimate so the figure always reads slightly
         // UNDER what the ship can really do. One tonne is worth about 0.06 LY on an 85 LY jump -
         // negligible for ordinary travel, but it is applied before the neutron multiplier, so a
@@ -566,7 +592,10 @@ namespace Elite
             EliteData.FSDPowerConstant = isScoMkII
                 ? ScoMkIIPowerConstant
                 : 2.0 + (fsdSize - 2) * 0.15;
-            EliteData.FSDLinearConstant = fsdRating switch { 'A' => 0.012, 'B' => 0.010, 'C' => 0.008, 'D' => 0.010, 'E' => 0.011, _ => 0.012 };
+            // The Mk II ignores the rating-derived linear constant too -- see ScoMkIILinearConstant.
+            EliteData.FSDLinearConstant = isScoMkII
+                ? ScoMkIILinearConstant
+                : fsdRating switch { 'A' => 0.012, 'B' => 0.010, 'C' => 0.008, 'D' => 0.010, 'E' => 0.011, _ => 0.012 };
 
             // MaxFuelPerJump: use modifier if available, otherwise back-calculate from MaxJumpRange
             if (explicitMaxFuel > 0)
