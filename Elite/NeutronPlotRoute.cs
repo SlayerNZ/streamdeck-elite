@@ -113,7 +113,11 @@ namespace Elite
         private static volatile bool isPlotting;
         private static string spanshError = string.Empty;
         private static DateTime spanshErrorAt = DateTime.MinValue;
-        private static readonly TimeSpan SpanshErrorDisplay = TimeSpan.FromSeconds(8);
+        // The error is the answer to something the user just asked for, so it needs long enough to
+        // be noticed on a deck you only glance at. At 8s a real ORIGIN UNKNOWN was missed entirely
+        // and the button reverted to showing a stale route, which read as a bad plot rather than a
+        // failed one. StartSpanshPlot clears it on the next attempt, so this is an upper bound.
+        private static readonly TimeSpan SpanshErrorDisplay = TimeSpan.FromSeconds(60);
         private static CancellationTokenSource spanshCts;
 
         public static bool IsPlotting => isPlotting;
@@ -770,12 +774,17 @@ namespace Elite
                 // aren't there — pre-check so the user gets a clear reason instead of a server 500.
                 if (!await SystemKnownAsync(destination, ct).ConfigureAwait(false))
                 {
+                    Logger.Instance.LogMessage(TracingLevel.WARN,
+                        $"Spansh plot aborted: destination id64 {destination} is not in Spansh's database (404)");
                     SetSpanshError("DEST UNKNOWN");
                     EndPlotting();
                     return;
                 }
                 if (!await SystemKnownAsync(source, ct).ConfigureAwait(false))
                 {
+                    Logger.Instance.LogMessage(TracingLevel.WARN,
+                        $"Spansh plot aborted: origin id64 {source} is not in Spansh's database (404). " +
+                        "Frontier systems only reach Spansh via EDDN uploads.");
                     SetSpanshError("ORIGIN UNKNOWN");
                     EndPlotting();
                     return;
