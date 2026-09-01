@@ -90,6 +90,22 @@ namespace Elite
         // enrichment (coords/fuel) baked in. Replaced on each replot; wiped on clear.
         private const string WaypointsFileName = "neutronRouteWaypoints.json";
 
+        // Conservative padding added to the ship's dry mass for Spansh plots ONLY, so planned hops
+        // keep headroom instead of sitting at the ragged edge of max range. Deliberately NOT applied
+        // to the display: GetJumpRange should stay as accurate as we can make it, and already has
+        // its own flat SafetyMassTonnes. This is purely about telling the plotter we are heavier
+        // than we are.
+        //
+        // History, so this does not get dropped a second time. It originally existed, was replaced
+        // in d2f5f51 by the BoostModifier trim on optimal_mass, and was then orphaned when the SCO
+        // Mk II fix correctly deleted BoostRangeFactor without restoring it. That left Spansh with
+        // no conservatism at all, and it planned a 488 LY opening hop against an in-game maximum of
+        // 487.19 LY: unreachable, and the exact failure this guards against.
+        //
+        // 0.5% of dry mass costs about 0.45% of range, which covers the ~0.17% residual optimism
+        // still in the FSD model plus in-trip fuel and cargo swing, without inflating the jump count.
+        private const double SpanshConservativeMassFraction = 0.005;
+
         // Spansh galaxy-plotter CSV column headers we depend on. Columns are looked up by NAME (not a
         // fixed position) so the parser tolerates Spansh reordering columns or inserting new ones —
         // only these five need to exist; anything else (e.g. the trailing "Inject") is ignored.
@@ -716,7 +732,9 @@ namespace Elite
                 // Record the ship + fuel model actually being sent, so a stale/mismatched ship shows
                 // up plainly in the log (the plotted range is derived from these, not sent directly).
                 Logger.Instance.LogMessage(TracingLevel.INFO,
-                    $"Spansh plot ship='{EliteData.ShipType}' optimal_mass={form["optimal_mass"]} base_mass={form["base_mass"]} " +
+                    $"Spansh plot ship='{EliteData.ShipType}' optimal_mass={form["optimal_mass"]} " +
+                    $"base_mass={form["base_mass"]} (dry {EliteData.UnladenMass:0.######} " +
+                    $"+{SpanshConservativeMassFraction:P1} plot-only padding) " +
                     $"max_fuel_per_jump={form["max_fuel_per_jump"]} range_boost={form["range_boost"]} " +
                     $"supercharge_multiplier={form["supercharge_multiplier"]} is_supercharged={form["is_supercharged"]} " +
                     $"fuel_power={form["fuel_power"]} fuel_multiplier={form["fuel_multiplier"]} tank_size={form["tank_size"]}");
@@ -747,11 +765,13 @@ namespace Elite
                 ["refuel_every_scoopable"] = "0",
                 ["fuel_power"] = N(EliteData.FSDPowerConstant),
                 ["fuel_multiplier"] = N(EliteData.FSDLinearConstant),
-                // Sent untrimmed. The old Caspian range trim was removed once the real cause was
-                // found (the SCO Mk II power constant); Spansh derives range from these same
-                // figures, so it now agrees with the display without a fudge factor.
+                // optimal_mass is sent untrimmed. The old Caspian range trim was removed once the
+                // real cause was found (the SCO Mk II power constant), and the display now needs no
+                // fudge factor. base_mass carries the conservatism instead, so only the plotter is
+                // affected and the displayed range stays honest.
                 ["optimal_mass"] = N(EliteData.FSDOptimalMass),
-                ["base_mass"] = N(EliteData.UnladenMass),                 // fuel-excluded (= Coriolis dryMass)
+                // fuel-excluded (= Coriolis dryMass), padded so planned hops stay inside real range
+                ["base_mass"] = N(EliteData.UnladenMass * (1.0 + SpanshConservativeMassFraction)),
                 ["tank_size"] = N(EliteData.FuelCapacityMain),
                 ["internal_tank_size"] = N(EliteData.FuelCapacityReserve),
                 ["reserve_size"] = "0",   // no extra main-tank buffer; plan with the full usable tank
