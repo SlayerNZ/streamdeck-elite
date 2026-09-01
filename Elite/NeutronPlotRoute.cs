@@ -135,6 +135,14 @@ namespace Elite
         // and the button reverted to showing a stale route, which read as a bad plot rather than a
         // failed one. StartSpanshPlot clears it on the next attempt, so this is an upper bound.
         private static readonly TimeSpan SpanshErrorDisplay = TimeSpan.FromSeconds(60);
+
+        // A successful substitution is information, not a failure: the route worked, it just ends
+        // somewhere slightly different. It does not need the full error window sitting over a route
+        // the pilot is trying to fly.
+        private static readonly TimeSpan SpanshNoticeDisplay = TimeSpan.FromSeconds(8);
+
+        // How long the current message stays up, set per message by SetSpanshError.
+        private static TimeSpan spanshErrorHold = TimeSpan.FromSeconds(60);
         private static CancellationTokenSource spanshCts;
 
         // Set when the destination was substituted, so the true destination can be appended as a
@@ -600,7 +608,7 @@ namespace Elite
                 SystemCurrent = state.SystemCurrent,
                 IsPlotting = isPlotting,
                 IsSpanshRoute = state.IsSpanshRoute,
-                SpanshError = (DateTime.UtcNow - spanshErrorAt) < SpanshErrorDisplay ? spanshError : string.Empty,
+                SpanshError = (DateTime.UtcNow - spanshErrorAt) < spanshErrorHold ? spanshError : string.Empty,
             };
 
             if (Waypoints.Count == 0)
@@ -845,7 +853,7 @@ namespace Elite
                     form["destination"] = destination.ToString(CultureInfo.InvariantCulture);
                     pendingAppend = trueDest;
                     pendingAppendDistance = near.Distance;
-                    SetSpanshError($"DEST +{near.Distance:0} LY");
+                    SetSpanshError($"DEST +{near.Distance:0} LY", SpanshNoticeDisplay);
                 }
 
                 // ORIGIN unknown: our own coordinates are always known, so no in-game route needed.
@@ -880,7 +888,7 @@ namespace Elite
 
                     source = nearOrigin.Id64;
                     form["source"] = source.ToString(CultureInfo.InvariantCulture);
-                    SetSpanshError($"ORIG +{nearOrigin.Distance:0} LY");
+                    SetSpanshError($"ORIG +{nearOrigin.Distance:0} LY", SpanshNoticeDisplay);
                 }
 
                 using (var content = new FormUrlEncodedContent(form))
@@ -1026,10 +1034,16 @@ namespace Elite
             }
         }
 
-        private static void SetSpanshError(string message)
+        /// <summary>
+        /// Show a message on the plot buttons. Pass a duration for informational notices; the
+        /// default is the long error window, because a real failure needs acting on and must not
+        /// vanish before it is noticed.
+        /// </summary>
+        private static void SetSpanshError(string message, TimeSpan? duration = null)
         {
             spanshError = message;
             spanshErrorAt = DateTime.UtcNow;
+            spanshErrorHold = duration ?? SpanshErrorDisplay;
         }
 
         private static void CancelSpanshPlot()
