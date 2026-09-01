@@ -143,7 +143,10 @@ namespace Elite
                         {
                             // Always watch the most recent journal file
                             var latestFile = Directory.GetFiles(journalPath, "Journal.*.log")
-                                .OrderByDescending(f => f)
+                                // Order by write time, NOT filename. Elite changed journal naming from
+                                // Journal.YYMMDDHHMMSS to Journal.YYYY-MM-DDTHHMMSS, and "22..." sorts above
+                                // "2026-..." lexicographically, so filename order returns 2022 files forever.
+                                .OrderByDescending(f => File.GetLastWriteTimeUtc(f))
                                 .FirstOrDefault();
 
                             if (latestFile != currentFile)
@@ -595,7 +598,10 @@ namespace Elite
                 }
 
                 var journalFiles = Directory.GetFiles(journalPath, "Journal.*.log")
-                    .OrderByDescending(f => f)
+                    // Order by write time, NOT filename. Elite changed journal naming from
+                    // Journal.YYMMDDHHMMSS to Journal.YYYY-MM-DDTHHMMSS, and "22..." sorts above
+                    // "2026-..." lexicographically, so filename order returns 2022 files forever.
+                    .OrderByDescending(f => File.GetLastWriteTimeUtc(f))
                     .Take(10)
                     .ToArray();
 
@@ -647,7 +653,10 @@ namespace Elite
                 Logger.Instance.LogMessage(TracingLevel.INFO, $"BackfillScanCache: scanning for system '{currentSystem}'");
 
                 var journalFiles = Directory.GetFiles(journalPath, "Journal.*.log")
-                    .OrderByDescending(f => f)
+                    // Order by write time, NOT filename. Elite changed journal naming from
+                    // Journal.YYMMDDHHMMSS to Journal.YYYY-MM-DDTHHMMSS, and "22..." sorts above
+                    // "2026-..." lexicographically, so filename order returns 2022 files forever.
+                    .OrderByDescending(f => File.GetLastWriteTimeUtc(f))
                     .Take(10)
                     .ToArray();
 
@@ -850,7 +859,10 @@ namespace Elite
             try
             {
                 var journalFiles = Directory.GetFiles(journalPath, "Journal.*.log")
-                    .OrderByDescending(f => f)
+                    // Order by write time, NOT filename. Elite changed journal naming from
+                    // Journal.YYMMDDHHMMSS to Journal.YYYY-MM-DDTHHMMSS, and "22..." sorts above
+                    // "2026-..." lexicographically, so filename order returns 2022 files forever.
+                    .OrderByDescending(f => File.GetLastWriteTimeUtc(f))
                     .Take(10)
                     .ToArray();
 
