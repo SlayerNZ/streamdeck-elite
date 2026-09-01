@@ -57,6 +57,10 @@ namespace Elite.Buttons
         private Bitmap _defaultImage = null;
         private string _primaryFile;
         private string _defaultFile;
+        // Fixed label size at a 256px canvas, scaled proportionally for other sizes.
+        // Same value as NavInfoButton.LabelFontPt so the buttons look consistent.
+        private const int LabelFontPt = 18;
+
         private SolidBrush _headingBrush = new SolidBrush(Color.Lime);
         private SolidBrush _altitudeBrush = new SolidBrush(Color.FromArgb(0, 170, 255));
 
@@ -67,46 +71,79 @@ namespace Elite.Buttons
             var isBold = settings.TextBold == "true";
             var fontStyle = isBold ? FontStyle.Bold : FontStyle.Regular;
 
-            for (int adjustedSize = 20; adjustedSize >= 8; adjustedSize -= 1)
+            var scale = width / 256.0;
+
+            // Keep the stacked label+value pair inside its row so the two groups cannot collide.
+            float maxBlockHeight = width * 0.36f;
+
+            // Label is a fixed small size so HDG and ALT always match each other; only the value
+            // auto-scales into the height left over. Mirrors NavInfoButton's LabelFontPt pattern.
+            var labelPt = (int)(LabelFontPt * scale);
+            if (labelPt < 8) labelPt = 8;
+
+            using (var labelFont = new Font("Arial", labelPt, fontStyle))
             {
-                var testFont = new Font("Arial", adjustedSize, fontStyle);
-                var sf = new StringFormat(StringFormat.GenericTypographic);
+                var lsf = new StringFormat(StringFormat.GenericTypographic);
+                lsf.SetMeasurableCharacterRanges(new[] { new CharacterRange(0, label.Length) });
+                var lb = graphics.MeasureCharacterRanges(label, labelFont, new RectangleF(0, 0, 1000, 1000), lsf)[0].GetBounds(graphics);
 
-                sf.SetMeasurableCharacterRanges(new[] { new CharacterRange(0, label.Length) });
-                var labelRegions = graphics.MeasureCharacterRanges(label, testFont, new RectangleF(0, 0, 1000, 1000), sf);
-                var labelBounds = labelRegions[0].GetBounds(graphics);
+                float labelBlock = lb.Height * 1.1f;
+                float valueMaxHeight = maxBlockHeight - labelBlock;
 
-                sf.SetMeasurableCharacterRanges(new[] { new CharacterRange(0, value.Length) });
-                var valueRegions = graphics.MeasureCharacterRanges(value, testFont, new RectangleF(0, 0, 1000, 1000), sf);
-                var valueBounds = valueRegions[0].GetBounds(graphics);
+                var startSize = (int)(72 * scale);
+                if (startSize < 8) startSize = 8;
 
-                bool fits = labelBounds.Width <= width * 0.95f && valueBounds.Width <= width * 0.95f;
-
-                if (fits)
+                for (int adjustedSize = startSize; adjustedSize >= 8; adjustedSize -= 1)
                 {
-                    var drawFmt = new StringFormat(StringFormat.GenericTypographic);
-                    float currentY = (float)(verticalPosition * (width / 256.0));
+                    using (var valueFont = new Font("Arial", adjustedSize, fontStyle))
+                    {
+                        var vsf = new StringFormat(StringFormat.GenericTypographic);
+                        vsf.SetMeasurableCharacterRanges(new[] { new CharacterRange(0, value.Length) });
+                        var vb = graphics.MeasureCharacterRanges(value, valueFont, new RectangleF(0, 0, 1000, 1000), vsf)[0].GetBounds(graphics);
 
-                    var lsf = new StringFormat(StringFormat.GenericTypographic);
-                    lsf.SetMeasurableCharacterRanges(new[] { new CharacterRange(0, label.Length) });
-                    var lr = graphics.MeasureCharacterRanges(label, testFont, new RectangleF(0, 0, 1000, 1000), lsf);
-                    var lb = lr[0].GetBounds(graphics);
-                    float labelX = (width - lb.Width) / 2.0f;
-                    graphics.DrawString(label, testFont, brush, labelX, currentY - lb.Y, drawFmt);
-                    currentY += lb.Height * 1.1f;
+                        if (vb.Width > width * 0.95f || vb.Height > valueMaxHeight) continue;
 
-                    var vsf = new StringFormat(StringFormat.GenericTypographic);
-                    vsf.SetMeasurableCharacterRanges(new[] { new CharacterRange(0, value.Length) });
-                    var vr = graphics.MeasureCharacterRanges(value, testFont, new RectangleF(0, 0, 1000, 1000), vsf);
-                    var vb = vr[0].GetBounds(graphics);
-                    float valueX = (width - vb.Width) / 2.0f;
-                    graphics.DrawString(value, testFont, brush, valueX, currentY - vb.Y, drawFmt);
+                        var drawFmt = new StringFormat(StringFormat.GenericTypographic);
+                        float currentY = (float)(verticalPosition * scale);
 
-                    testFont.Dispose();
-                    return;
+                        graphics.DrawString(label, labelFont, brush, (width - lb.Width) / 2.0f, currentY - lb.Y, drawFmt);
+                        currentY += labelBlock;
+                        graphics.DrawString(value, valueFont, brush, (width - vb.Width) / 2.0f, currentY - vb.Y, drawFmt);
+                        return;
+                    }
                 }
+            }
+        }
 
-                testFont.Dispose();
+        /// <summary>
+        /// Draws the normal layout with placeholder values on a synthesised black canvas, for when
+        /// there is no lat/long and the user has supplied no Not Active image. Showing dashes makes
+        /// it obvious the button is alive but has no data, which a frozen last reading does not.
+        /// </summary>
+        private async Task DrawPlaceholderAsync()
+        {
+            try
+            {
+                using (var bitmap = new Bitmap(256, 256))
+                {
+                    using (var graphics = Graphics.FromImage(bitmap))
+                    {
+                        graphics.Clear(Color.Black);
+
+                        var width = bitmap.Width;
+                        var headingPos = double.TryParse(settings.HeadingVerticalPosition, out double hp) ? hp : 28.0;
+                        var altitudePos = double.TryParse(settings.AltitudeVerticalPosition, out double ap) ? ap : 128.0;
+
+                        DrawLabelAndValue(graphics, "HDG", "--", _headingBrush, headingPos, width);
+                        DrawLabelAndValue(graphics, "ALT", "--", _altitudeBrush, altitudePos, width);
+                    }
+
+                    await Connection.SetImageAsync(BarRaider.SdTools.Tools.ImageToBase64(bitmap, true));
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogMessage(TracingLevel.FATAL, "HeadingAltitude DrawPlaceholderAsync " + ex);
             }
         }
 
@@ -117,19 +154,20 @@ namespace Elite.Buttons
             if (!s.HasLatLong)
             {
                 if (!string.IsNullOrEmpty(_defaultFile))
+                {
                     await Connection.SetImageAsync(_defaultFile);
+                    return;
+                }
+
+                // No Not Active image configured. Returning here would leave the last live reading
+                // frozen on the button, which reads as current data long after it stopped being
+                // true, so draw placeholders instead.
+                await DrawPlaceholderAsync();
                 return;
             }
 
             var myBitmap = _primaryImage ?? _defaultImage;
             var imgBase64 = _primaryFile ?? _defaultFile;
-
-            if (myBitmap == null)
-            {
-                if (!string.IsNullOrEmpty(imgBase64))
-                    await Connection.SetImageAsync(imgBase64);
-                return;
-            }
 
             var headingText = $"{s.Heading:F0}°";
             var altitudeText = s.Altitude >= 3000
@@ -137,10 +175,14 @@ namespace Elite.Buttons
                 : $"{s.Altitude:F0}m";
             try
             {
-                using (var bitmap = new Bitmap(myBitmap))
+                using (var bitmap = myBitmap != null ? new Bitmap(myBitmap) : new Bitmap(256, 256))
                 {
                     using (var graphics = Graphics.FromImage(bitmap))
                     {
+                        // No background image configured: draw onto solid black rather than bailing out
+                        if (myBitmap == null)
+                            graphics.Clear(Color.Black);
+
                         var width = bitmap.Width;
                         var headingPos = double.TryParse(settings.HeadingVerticalPosition, out double hp) ? hp : 28.0;
                         var altitudePos = double.TryParse(settings.AltitudeVerticalPosition, out double ap) ? ap : 128.0;

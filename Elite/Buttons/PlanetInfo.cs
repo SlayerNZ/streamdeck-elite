@@ -167,7 +167,13 @@ namespace Elite.Buttons
             // grow past the top half of the button and crowd the temperature line.
             float maxBlockHeight = width * 0.46f;
 
-            for (int adjustedSize = 25; adjustedSize >= 8; adjustedSize -= 1)
+            // Start size scales with the canvas; maxBlockHeight above still governs the final fit.
+            // The old fixed 25pt cap left this row far smaller than the temperature row below it,
+            // which searches from 100.
+            var startSize = (int)(64 * (width / 256.0));
+            if (startSize < 8) startSize = 8;
+
+            for (int adjustedSize = startSize; adjustedSize >= 8; adjustedSize -= 1)
             {
                 var testFont = new Font("Arial", adjustedSize, fontStyle);
                 bool fits = true;
@@ -289,23 +295,27 @@ namespace Elite.Buttons
             {
                 // No planet context at all — show default image only
                 if (!string.IsNullOrEmpty(_defaultFile))
+                {
                     await Connection.SetImageAsync(_defaultFile);
-                return;
-            }
+                    return;
+                }
 
-            if (myBitmap == null)
-            {
-                if (!string.IsNullOrEmpty(imgBase64))
-                    await Connection.SetImageAsync(imgBase64);
-                return;
+                // No Not Active image configured. Fall through with placeholders rather than
+                // returning, which would leave the last live reading frozen on the button.
+                atmosphereText = "--";
+                temperatureText = "--";
             }
 
             try
             {
-                using (var bitmap = new Bitmap(myBitmap))
+                using (var bitmap = myBitmap != null ? new Bitmap(myBitmap) : new Bitmap(256, 256))
                 {
                     using (var graphics = Graphics.FromImage(bitmap))
                     {
+                        // No background image configured: draw onto solid black rather than bailing out
+                        if (myBitmap == null)
+                            graphics.Clear(Color.Black);
+
                         var width = bitmap.Width;
                         var atmPos = double.TryParse(settings.AtmosphereVerticalPosition, out double ap) ? ap : 28.0;
                         var tempPos = double.TryParse(settings.TemperatureVerticalPosition, out double tp) ? tp : 128.0;

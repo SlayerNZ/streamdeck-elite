@@ -157,24 +157,27 @@ namespace Elite.Buttons
                 {
                     // No body targeted or no scan data — show default image only
                     if (!string.IsNullOrEmpty(_defaultFile))
+                    {
                         await Connection.SetImageAsync(_defaultFile);
-                    return;
-                }
-            }
+                        return;
+                    }
 
-            if (myBitmap == null)
-            {
-                if (!string.IsNullOrEmpty(imgBase64))
-                    await Connection.SetImageAsync(imgBase64);
-                return;
+                    // No Not Active image configured. Fall through with a placeholder rather than
+                    // returning, which would leave the last live reading frozen on the button.
+                    gravityText = "--g";
+                }
             }
 
             try
             {
-                using (var bitmap = new Bitmap(myBitmap))
+                using (var bitmap = myBitmap != null ? new Bitmap(myBitmap) : new Bitmap(256, 256))
                 {
                     using (var graphics = Graphics.FromImage(bitmap))
                     {
+                        // No background image configured: draw onto solid black rather than bailing out
+                        if (myBitmap == null)
+                            graphics.Clear(Color.Black);
+
                         var width = bitmap.Width;
                         var fontContainerHeight = 100 * (width / 256.0);
 

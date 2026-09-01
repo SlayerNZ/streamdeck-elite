@@ -195,7 +195,18 @@ namespace Elite.Buttons
             if (string.IsNullOrEmpty(destName))
             {
                 if (!string.IsNullOrEmpty(_defaultFile))
+                {
                     await Connection.SetImageAsync(_defaultFile);
+                    return;
+                }
+
+                // No Not Active image configured. Clear the button rather than returning, which
+                // would leave the previous target's details frozen in place.
+                using (var blank = new Bitmap(256, 256))
+                {
+                    using (var g = Graphics.FromImage(blank)) g.Clear(Color.Black);
+                    await Connection.SetImageAsync(BarRaider.SdTools.Tools.ImageToBase64(blank, true));
+                }
                 return;
             }
 
@@ -212,13 +223,6 @@ namespace Elite.Buttons
             // Use active image when we have recognisable planet data, default otherwise
             var myBitmap  = (planetLines != null) ? _activeImage  : _defaultImage;
             var imgBase64 = (planetLines != null) ? _activeFile   : _defaultFile;
-
-            if (myBitmap == null)
-            {
-                if (!string.IsNullOrEmpty(imgBase64))
-                    await Connection.SetImageAsync(imgBase64);
-                return;
-            }
 
             // Current rotating planet-type phrase
             string planetText = null;
@@ -253,10 +257,14 @@ namespace Elite.Buttons
             // Render text onto a copy of the image
             try
             {
-                using (var bitmap = new Bitmap(myBitmap))
+                using (var bitmap = myBitmap != null ? new Bitmap(myBitmap) : new Bitmap(256, 256))
                 {
                     using (var graphics = Graphics.FromImage(bitmap))
                     {
+                        // No background image configured: draw onto solid black rather than bailing out
+                        if (myBitmap == null)
+                            graphics.Clear(Color.Black);
+
                         var width   = bitmap.Width;
                         var typePos = double.TryParse(_settings.PlanetTypeVerticalPosition,
                                           out double tp) ? tp : 34.0;
