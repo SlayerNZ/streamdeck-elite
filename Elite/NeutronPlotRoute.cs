@@ -1,4 +1,5 @@
 using BarRaider.SdTools;
+using EliteJournalReader;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -135,6 +136,16 @@ namespace Elite
         // failed one. StartSpanshPlot clears it on the next attempt, so this is an upper bound.
         private static readonly TimeSpan SpanshErrorDisplay = TimeSpan.FromSeconds(60);
         private static CancellationTokenSource spanshCts;
+
+        // Set when the destination was substituted, so the true destination can be appended as a
+        // final leg once Spansh returns. Only ever touched inside a plot, which isPlotting serialises.
+        private static RouteElement pendingAppend;
+
+        // Distance from the substitute to the true destination, taken straight from the /api/nearest
+        // response. Do NOT compute this from waypoint coordinates: ApplySpanshResult leaves X/Y/Z
+        // null on Spansh routes (they are filled later by EDSM enrichment), so the last waypoint has
+        // no position to measure from.
+        private static double pendingAppendDistance;
 
         public static bool IsPlotting => isPlotting;
 
@@ -722,6 +733,8 @@ namespace Elite
                 }
 
                 spanshError = string.Empty;
+                pendingAppend = null;
+                pendingAppendDistance = 0;
                 spanshCts?.Cancel();
                 spanshCts?.Dispose();
                 spanshCts = new CancellationTokenSource();
@@ -792,22 +805,82 @@ namespace Elite
             {
                 // Spansh can only route between systems in its DB. Unvisited procgen frontier systems
                 // aren't there — pre-check so the user gets a clear reason instead of a server 500.
+                // DESTINATION unknown: substitute the nearest system Spansh does have, and remember
+                // the real one so it can be appended as a final leg once the route comes back.
                 if (!await SystemKnownAsync(destination, ct).ConfigureAwait(false))
                 {
-                    Logger.Instance.LogMessage(TracingLevel.WARN,
-                        $"Spansh plot aborted: destination id64 {destination} is not in Spansh's database (404)");
-                    SetSpanshError("DEST UNKNOWN");
-                    EndPlotting();
-                    return;
+                    var trueDest = NavRouteService.Destination();
+                    if (trueDest?.StarPos == null)
+                    {
+                        // No in-game route means no coordinates, and no database has them either.
+                        Logger.Instance.LogMessage(TracingLevel.WARN,
+                            $"Spansh plot aborted: destination id64 {destination} unknown to Spansh (404) and " +
+                            "no in-game route is plotted, so its coordinates are unavailable. Plot a course " +
+                            "in-game (not just 'set target') to enable substitution.");
+                        SetSpanshError("PLOT IN GAME");
+                        EndPlotting();
+                        return;
+                    }
+
+                    var near = await NearestKnownSystemAsync(
+                        (double)trueDest.StarPos.X, (double)trueDest.StarPos.Y, (double)trueDest.StarPos.Z, ct)
+                        .ConfigureAwait(false);
+
+                    if (near == null)
+                    {
+                        Logger.Instance.LogMessage(TracingLevel.WARN,
+                            $"Spansh plot aborted: destination id64 {destination} unknown (404) and no nearby " +
+                            "known system could be found.");
+                        SetSpanshError("DEST UNKNOWN");
+                        EndPlotting();
+                        return;
+                    }
+
+                    Logger.Instance.LogMessage(TracingLevel.INFO,
+                        $"Spansh destination '{trueDest.StarSystem}' unknown (404); substituting nearest known " +
+                        $"'{near.Name}' (id64 {near.Id64}) at {near.Distance:0.0} LY. The true destination will be " +
+                        "appended as a final leg.");
+
+                    destination = near.Id64;
+                    form["destination"] = destination.ToString(CultureInfo.InvariantCulture);
+                    pendingAppend = trueDest;
+                    pendingAppendDistance = near.Distance;
+                    SetSpanshError($"DEST +{near.Distance:0} LY");
                 }
+
+                // ORIGIN unknown: our own coordinates are always known, so no in-game route needed.
                 if (!await SystemKnownAsync(source, ct).ConfigureAwait(false))
                 {
-                    Logger.Instance.LogMessage(TracingLevel.WARN,
-                        $"Spansh plot aborted: origin id64 {source} is not in Spansh's database (404). " +
-                        "Frontier systems only reach Spansh via EDDN uploads.");
-                    SetSpanshError("ORIGIN UNKNOWN");
-                    EndPlotting();
-                    return;
+                    if (!EliteData.HasStarPos)
+                    {
+                        Logger.Instance.LogMessage(TracingLevel.WARN,
+                            $"Spansh plot aborted: origin id64 {source} unknown to Spansh (404) and we have no " +
+                            "current StarPos to search from.");
+                        SetSpanshError("ORIGIN UNKNOWN");
+                        EndPlotting();
+                        return;
+                    }
+
+                    var nearOrigin = await NearestKnownSystemAsync(
+                        EliteData.StarPosX, EliteData.StarPosY, EliteData.StarPosZ, ct).ConfigureAwait(false);
+
+                    if (nearOrigin == null)
+                    {
+                        Logger.Instance.LogMessage(TracingLevel.WARN,
+                            $"Spansh plot aborted: origin id64 {source} unknown (404) and no nearby known system " +
+                            "could be found.");
+                        SetSpanshError("ORIGIN UNKNOWN");
+                        EndPlotting();
+                        return;
+                    }
+
+                    Logger.Instance.LogMessage(TracingLevel.INFO,
+                        $"Spansh origin unknown (404); starting from nearest known '{nearOrigin.Name}' " +
+                        $"(id64 {nearOrigin.Id64}) at {nearOrigin.Distance:0.0} LY. Expect OFF ROUTE until you reach it.");
+
+                    source = nearOrigin.Id64;
+                    form["source"] = source.ToString(CultureInfo.InvariantCulture);
+                    SetSpanshError($"ORIG +{nearOrigin.Distance:0} LY");
                 }
 
                 using (var content = new FormUrlEncodedContent(form))
@@ -907,6 +980,52 @@ namespace Elite
             }
         }
 
+        // Response shape of GET /api/nearest?x=&y=&z=
+        private class NearestResponse
+        {
+            [JsonProperty("system")] public NearestSystem System { get; set; }
+        }
+
+        private class NearestSystem
+        {
+            [JsonProperty("id64")] public long Id64 { get; set; }
+            [JsonProperty("name")] public string Name { get; set; }
+            [JsonProperty("distance")] public double Distance { get; set; }
+        }
+
+        /// <summary>
+        /// The nearest system Spansh actually has data for, or null if the lookup fails.
+        ///
+        /// Spansh can only route between systems in its database, which is fed by EDDN uploads, so
+        /// unvisited frontier systems are absent - exactly where the neutron plotter is most useful
+        /// and currently least reliable. Given coordinates it will name a system it does know, which
+        /// lets a refused plot become a working one.
+        /// </summary>
+        private static async Task<NearestSystem> NearestKnownSystemAsync(double x, double y, double z, CancellationToken ct)
+        {
+            try
+            {
+                var url = string.Format(CultureInfo.InvariantCulture,
+                    "https://spansh.co.uk/api/nearest?x={0}&y={1}&z={2}", x, y, z);
+
+                var resp = await Http.GetAsync(url, ct).ConfigureAwait(false);
+                if (!resp.IsSuccessStatusCode) return null;
+
+                var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var parsed = JsonConvert.DeserializeObject<NearestResponse>(body);
+                return parsed?.System != null && parsed.System.Id64 != 0 ? parsed.System : null;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogMessage(TracingLevel.ERROR, "NeutronPlotRoute NearestKnownSystemAsync " + ex);
+                return null;
+            }
+        }
+
         private static void SetSpanshError(string message)
         {
             spanshError = message;
@@ -948,6 +1067,42 @@ namespace Elite
                         CumulativeDistance = cumulative,
                         Id64 = j.Id64
                     });
+                }
+
+                // The destination was substituted because Spansh had never heard of the real one, so
+                // put it back as a final leg. Everything needed comes from the in-game route, which
+                // is why this is a complete waypoint rather than a stub. The leg may exceed jump
+                // range; that is deliberate - it is information, and the pilot has the in-game route
+                // to fly it.
+                if (pendingAppend?.StarPos != null && Waypoints.Count > 0)
+                {
+                    var last = Waypoints[Waypoints.Count - 1];
+                    if (last.Id64 != pendingAppend.SystemAddress)
+                    {
+                        var legDistance = pendingAppendDistance;
+                        cumulative += legDistance;
+                        Waypoints.Add(new NeutronPlotWaypoint
+                        {
+                            SystemName = pendingAppend.StarSystem ?? string.Empty,
+                            Id64 = pendingAppend.SystemAddress,
+                            JumpDistance = legDistance,
+                            DistanceRemaining = 0,
+                            CumulativeDistance = cumulative,
+                            IsNeutron = string.Equals(pendingAppend.StarClass, "N", StringComparison.OrdinalIgnoreCase),
+                            IsScoopable = NavRouteService.IsScoopableClass(pendingAppend.StarClass),
+                            IsRefuel = false,
+                            MustInject = false,
+                            X = (double)pendingAppend.StarPos.X,
+                            Y = (double)pendingAppend.StarPos.Y,
+                            Z = (double)pendingAppend.StarPos.Z
+                        });
+
+                        Logger.Instance.LogMessage(TracingLevel.INFO,
+                            $"Appended true destination '{pendingAppend.StarSystem}' as a final leg of " +
+                            $"{legDistance:0.0} LY (scoopable={NavRouteService.IsScoopableClass(pendingAppend.StarClass)}).");
+                    }
+                    pendingAppend = null;
+                    pendingAppendDistance = 0;
                 }
 
                 state.IsSpanshRoute = true;

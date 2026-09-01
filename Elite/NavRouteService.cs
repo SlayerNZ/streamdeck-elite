@@ -39,6 +39,27 @@ namespace Elite
         private static readonly HashSet<string> ScoopableClasses =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "O", "B", "A", "F", "G", "K", "M" };
 
+        /// <summary>
+        /// The in-game route's final waypoint, or null when no route is plotted.
+        ///
+        /// This is the only source of coordinates for a system nobody has ever visited. Spansh and
+        /// EDSM both return empty for unexplored frontier systems, and FSDTarget carries only a name
+        /// and id64 - but the game always knows where its own stars are, and writes StarPos for
+        /// every waypoint the moment a course is plotted. That is why autoplot into unexplored space
+        /// requires plotting in-game rather than just setting a target.
+        /// </summary>
+        public static RouteElement Destination()
+        {
+            lock (SyncRoot)
+            {
+                return Waypoints.Count > 0 ? Waypoints[Waypoints.Count - 1] : null;
+            }
+        }
+
+        /// <summary>Is this star class scoopable? Shared so synthesised waypoints agree with the route display.</summary>
+        public static bool IsScoopableClass(string starClass) =>
+            !string.IsNullOrEmpty(starClass) && ScoopableClasses.Contains(starClass);
+
         public static void Initialize()
         {
             // NavRouteWatcher fires immediately on StartWatching if NavRoute.json exists,

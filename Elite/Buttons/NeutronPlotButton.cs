@@ -242,7 +242,9 @@ namespace Elite.Buttons
                 return;
             }
 
-            if (!snapshot.IsLoaded && !string.IsNullOrEmpty(snapshot.SpanshError))
+            // Shown even with a route loaded: the one time you most need this is when replacing an
+            // existing route, which is exactly when the old !IsLoaded guard hid it.
+            if (!string.IsNullOrEmpty(snapshot.SpanshError))
             {
                 DrawInZone(graphics, width, snapshot.SpanshError, 86, 66, Color.Red, 28);
                 return;
