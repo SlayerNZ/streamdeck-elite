@@ -128,7 +128,46 @@ Three display styles to suit your layout:
 
 Each row has its own colour, and a configurable **Boost Color** highlights the Jump Range when you've supercharged.
 
-> **NOTE:** Spansh can only plot to systems it already knows about. If you target an unvisited deep-space system the button will say `DEST UNKNOWN` - target a known or previously-visited waypoint instead.
+#### Plotting a route
+
+**1. The normal case.** Target the system you want in the Galaxy Map, then trigger **Auto Plot**. That is all that is needed whenever Spansh knows both ends of the route, which covers most of travelled space.
+
+**2. If your ORIGIN is unknown to Spansh**, nothing is required from you. The plotter finds the nearest system Spansh does know and starts the route from there, showing a yellow notice such as `ORIG +42 LY` so you know how far away that start point is. Expect the route to read `OFF ROUTE` until you reach it.
+
+**3. If your DESTINATION is unknown to Spansh**, the button shows a red `PLOT IN GAME`.
+
+Spansh only knows systems somebody has uploaded, so deep-space systems nobody has visited are simply absent from it. To plot to one:
+
+1. Select your destination in the Galaxy Map and **plot a course to it in-game**, rather than only setting it as your target. This is what gives the plugin the system's coordinates, which no database has.
+2. Trigger **Auto Plot** again.
+
+The plotter now finds the nearest system Spansh does know, plots a fuel-aware route to it, and then **appends your real destination as a final waypoint**, so the route still ends where you actually wanted to go. You will see a yellow notice giving the length of that final leg:
+
+```
+DEST +74 LY
+```
+
+That last leg may be longer than a single jump. This is deliberate, and the distance is shown so you can plan for it.
+
+> **Once the route is plotted, cancel the in-game navigation route.** If you leave it active, the game recalculates it every time you open the Galaxy Map, which interferes with targeting the next system along your neutron route.
+
+#### Button messages
+
+| Message | Colour | Meaning |
+|---|---|---|
+| `PLOTTING ...` | white | request sent to Spansh, waiting for the route |
+| `DEST +NN LY` | yellow | destination was unknown, so the route goes to the nearest known system and your real destination is appended as a final leg of NN LY |
+| `ORIG +NN LY` | yellow | origin was unknown, so the route starts from the nearest known system, NN LY away |
+| `PLOT IN GAME` | red | destination unknown to Spansh and no in-game route to it, so its coordinates are unavailable. Plot a course to it in-game and try again |
+| `DEST UNKNOWN` | red | destination unknown and no nearby known system could be found |
+| `ORIGIN UNKNOWN` | red | origin unknown and no nearby known system could be found |
+| `NO TARGET` | red | no system is targeted |
+| `NO ORIGIN` | red | current system unknown, usually just after startup |
+| `NO SHIP` | red | ship's FSD details not yet read from the journal |
+| `API ERROR` | red | Spansh returned an error or could not be reached |
+
+Yellow notices clear after about 8 seconds. Red errors stay for a minute, since they need acting on.
+
 
 Fixed bug:  The Neutron Boost multiplier was accidentally hardcoded to 4x, which didn't work with the Caspian Explorer.  It's now dynamically generated from the journals so the Spansh plotter can accurately calculate your most efficient route.
 

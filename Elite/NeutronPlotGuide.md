@@ -126,15 +126,40 @@ You can show up to **three** values on a key (Upper / Mid / Lower), each with it
 | **OFF ROUTE** | Your current system isn't on the route, so you've wandered off the planned path. |
 | **At Dest** | You've reached the final waypoint. Nice flying. |
 
+### Plotting into unexplored space
+
+Spansh can only route between systems it has data for, and that data comes from commander uploads. Systems nobody has visited are simply absent, which is most of the deep black.
+
+The plotter handles both ends of this automatically:
+
+- **Unknown origin.** Nothing is required from you. The route starts from the nearest system Spansh does know, and the button shows a yellow `ORIG +42 LY`. Expect `OFF ROUTE` until you reach that start point.
+- **Unknown destination.** The button shows a red `PLOT IN GAME`. Select your destination in the Galaxy Map and **plot a course to it in-game**, rather than only setting it as your target, then trigger Auto Plot again. The plugin takes the destination's coordinates from the in-game route, finds the nearest system Spansh knows, plots to it, and appends your real destination as a final waypoint. You will see a yellow `DEST +74 LY` giving the length of that last leg.
+
+Why the in-game route is needed: no database has coordinates for a system nobody has visited, but the game always knows where its own stars are, and writes them out the moment you plot a course.
+
+The final leg may be longer than a single jump. That is deliberate, and its length is shown so you can plan for it.
+
+> **After the route is plotted, cancel the in-game navigation route.** If you leave it active the game recalculates it every time you open the Galaxy Map, which interferes with targeting the next system along your neutron route.
+
 ### Auto Plot statuses
 
-If **Auto Plot (Spansh)** can't complete, the button briefly shows a short message instead of a route:
+The button shows a short message instead of a route. Yellow notices clear after about 8 seconds; red errors stay for a minute, since they need acting on.
 
-| Message | Meaning |
-| --- | --- |
-| **NO TARGET** | You don't have an FSD destination selected in-game. Pick one in the Galaxy Map and try again. |
-| **NO ROUTE** | Spansh couldn't return a route for that target with your ship's current fuel/range. |
-| **API ERROR** | Something went wrong talking to Spansh. Try again in a moment. |
+| Message | Colour | Meaning |
+| --- | --- | --- |
+| **PLOTTING ...** | white | Request sent to Spansh, waiting for the route. |
+| **DEST +NN LY** | yellow | Destination was unknown, so the route goes to the nearest known system and your real destination is appended as a final leg of NN LY. |
+| **ORIG +NN LY** | yellow | Origin was unknown, so the route starts from the nearest known system, NN LY away. |
+| **PLOT IN GAME** | red | Destination is unknown to Spansh and there is no in-game route to it, so its coordinates are unavailable. Plot a course to it in-game and try again. |
+| **DEST UNKNOWN** | red | Destination unknown and no nearby known system could be found. |
+| **ORIGIN UNKNOWN** | red | Origin unknown and no nearby known system could be found. |
+| **NO TARGET** | red | You don't have an FSD destination selected in-game. Pick one in the Galaxy Map and try again. |
+| **NO ORIGIN** | red | Your current system isn't known yet, usually just after startup. |
+| **NO SHIP** | red | Your ship's FSD details haven't been read from the journal yet. |
+| **NO JOB** | red | Spansh accepted the request but returned no job to poll. |
+| **API ERROR** | red | Something went wrong talking to Spansh. Try again in a moment. |
+
+Your existing route is left untouched when a plot fails.
 
 ---
 
