@@ -26,7 +26,18 @@ namespace Elite.Buttons
                     Function = string.Empty,
                     PrimaryImageFilename = string.Empty,
                     SecondaryImageFilename = string.Empty,
-                    TertiaryImageFilename = string.Empty
+                    TertiaryImageFilename = string.Empty,
+
+                    // Must be set here, not only backfilled in HandleFileNames: the property
+                    // inspector's colour inputs have no value attribute, so a missing setting
+                    // renders as #000000 and is then persisted as a literal black on first edit.
+                    PrimaryPipColor = "#ffffff",
+                    SecondaryPipColor = "#ffffff",
+                    TertiaryPipColor = "#ffffff",
+                    SecondaryHalfPipColor = "#909090",
+                    TertiaryHalfPipColor = "#909090",
+                    SecondaryNoPipColor = "#303030",
+                    TertiaryNoPipColor = "#303030"
                 };
 
                 return instance;
