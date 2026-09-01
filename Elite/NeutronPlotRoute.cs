@@ -827,6 +827,23 @@ namespace Elite
                 if (!await SystemKnownAsync(destination, ct).ConfigureAwait(false))
                 {
                     var trueDest = NavRouteService.Destination();
+
+                    // The in-game route must actually END at the system we are plotting to. A route
+                    // to X while targeting an intermediate Y would otherwise substitute using X's
+                    // coordinates and plot to somewhere near the wrong system entirely - easy to hit,
+                    // since targeting intermediate systems along a route is routine.
+                    if (trueDest != null && trueDest.SystemAddress != destination)
+                    {
+                        Logger.Instance.LogMessage(TracingLevel.WARN,
+                            $"Spansh plot aborted: destination id64 {destination} unknown to Spansh (404). An " +
+                            $"in-game route exists but ends at '{trueDest.StarSystem}' (id64 {trueDest.SystemAddress}), " +
+                            "a different system, so its coordinates cannot stand in. Plot a course to the system " +
+                            "you actually want.");
+                        SetSpanshError("PLOT IN GAME");
+                        EndPlotting();
+                        return;
+                    }
+
                     if (trueDest?.StarPos is null)   // NOT == null: SystemPosition.operator== throws on a null operand
                     {
                         // No in-game route means no coordinates, and no database has them either.
