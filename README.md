@@ -15,6 +15,50 @@ This release upgrades the plugin's underlying `EliteJournalReader` library (the 
 
 ---
 
+## New & Update Features (v4.2.1)
+
+A bug-fix release. One of these had been silently breaking shipped features since v4.2.0, so it is worth updating even if nothing looked wrong.
+
+---
+
+### 📖 🔧 Fixed: journal files were being read from 2022
+
+Elite changed its journal filename format, and the plugin sorted journals alphabetically. Because `Journal.22...` sorts above `Journal.2026-...`, every old-format file ranked above every current one, so the plugin was reading ten journals from April 2022 and following one of them indefinitely.
+
+This silently broke:
+
+- **Bio and geo signal counts** on the Exploration Dial touch strip, which could never see live scan data
+- **Gravity readings** after a game crash rolled the journal, showing `?g` for bodies scanned minutes earlier
+- Ship and route backfills on startup, which could quietly recover nothing
+
+Journals are now ordered by file write time, which is immune to any future rename. This only affected commanders whose journal folder spans the naming change, so newer players were sorting correctly by accident.
+
+---
+
+### 🖥️ 🔧 Fixed: info buttons needed a background image to show anything
+
+**Heading / Altitude**, **LatLong Info**, **Planet Info**, **Gravity** and **Nav Target** used your background image as their drawing canvas, so with no image configured they drew nothing at all and the key kept its default Stream Deck icon. Nothing indicated an image was required. They now draw on solid black when no image is set, so they work out of the box.
+
+The same buttons could also **freeze on stale readings**, continuing to show the last live values after going inactive. An altitude reading could still be displayed thousands of light years from the planet it came from. They now show placeholder dashes instead, and still use your "Not Active" image when you have set one.
+
+Text on those buttons was also **far too small**, capped at a fixed size regardless of the button. It now scales properly, and Heading / Altitude and LatLong Info use a small fixed label with a larger auto-scaling value, since the value is what you actually need to read.
+
+---
+
+### 🔋 🔧 Fixed: Power button pips defaulted to black
+
+A newly placed Power button had no colour defaults, so its settings showed black swatches and saved black the first time you changed anything, leaving the pips invisible against the background. Defaults are now white and grey.
+
+If you already have a Power button showing black pips, delete and re-add it, or set the seven colours by hand.
+
+---
+
+### 🗺️ 🔧 Fixed: failed neutron plots were easy to miss
+
+Spansh cannot route from a system it has never seen, which is common in unexplored space. The plugin detected this correctly but showed the reason for only 8 seconds before reverting to the previous route, making a refusal look like a bad plot. The message now shows for a minute and is written to the plugin log.
+
+---
+
 ## New & Update Features (v4.2.0)
 
 ### 🔭 🆕 (NEW) Exploration Dial: FSS & DSS
@@ -396,7 +440,7 @@ Altitude auto-scales based on height:
 Below 3,000m - displays in meters (e.g. 1250m)
 At or above 3,000m - displays in kilometers (e.g. 12.4km)
 
-The button only activates when the game reports a valid planetary position, so it stays blank in deep space or while docked.
+The button only activates when the game reports a valid planetary position. In deep space or while docked it shows placeholder dashes, or your "Not Active" image if you have set one, so it never sits there displaying a reading that stopped being true hours ago.
 Settings:
 
 Near Planet Image - background image shown when planetary data is active
