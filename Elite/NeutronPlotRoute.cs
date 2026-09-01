@@ -810,7 +810,7 @@ namespace Elite
                 if (!await SystemKnownAsync(destination, ct).ConfigureAwait(false))
                 {
                     var trueDest = NavRouteService.Destination();
-                    if (trueDest?.StarPos == null)
+                    if (trueDest?.StarPos is null)   // NOT == null: SystemPosition.operator== throws on a null operand
                     {
                         // No in-game route means no coordinates, and no database has them either.
                         Logger.Instance.LogMessage(TracingLevel.WARN,
@@ -1074,7 +1074,7 @@ namespace Elite
                 // is why this is a complete waypoint rather than a stub. The leg may exceed jump
                 // range; that is deliberate - it is information, and the pilot has the in-game route
                 // to fly it.
-                if (pendingAppend?.StarPos != null && Waypoints.Count > 0)
+                if (pendingAppend?.StarPos is not null && Waypoints.Count > 0)   // NOT != null, see above
                 {
                     var last = Waypoints[Waypoints.Count - 1];
                     if (last.Id64 != pendingAppend.SystemAddress)
