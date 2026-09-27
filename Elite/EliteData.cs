@@ -522,19 +522,24 @@ namespace Elite
                 var fuel = StatusData.Fuel.FuelMain + StatusData.Fuel.FuelReservoir;
                 var totalMass = UnladenMass + fuel + StatusData.Cargo + SafetyMassTonnes;
 
-                // The drive can only burn what is actually in the main tank. Above the per-jump cap
-                // this changes nothing, which is why the figure stays as validated across 8 fuel
-                // levels from 128 t down to 16 t; below it the range really does collapse, and
-                // ignoring that over-reported badly at exactly the wrong moment. On the Caspian
-                // (cap 6.8 t) the old figure was +3.7 LY over at 6 t of fuel, +14.7 at 4 t and
-                // +29.9 at 2 t, all of it optimistic.
+                // The drive can only burn what is in the tank. Above the per-jump cap this changes
+                // nothing, which is why the figure stays as validated across 8 fuel levels from
+                // 128 t down to 16 t; below it the range really does collapse, and ignoring that
+                // over-reported by +4.16 LY at 5.1 t on the Caspian, and far worse lower down.
                 //
-                // The reservoir is deliberately NOT counted as available: it feeds the ship, not a
-                // jump. It still counts toward mass above. FuelMain reads 0 when the game is shut
-                // down (Status.json carries no Fuel block at all then), so require a real reading
-                // before capping or a closed game would report a 0 LY range.
-                var fuelForJump = StatusData.Fuel.FuelMain > 0
-                    ? Math.Min(StatusData.Fuel.FuelMain, FSDMaxFuelPerJump)
+                // **The RESERVOIR counts as available jump fuel.** Measured in game 2026-09-27 at
+                // 5.077 t main + ~0.83 t reservoir, where the game showed 83.46 LY. Working back
+                // from that figure implies 5.908 t of usable fuel, which is main PLUS reservoir
+                // (5.91), not main alone (5.08). Main alone reads 4.35 LY UNDER, so it is not a
+                // conservative choice, it is simply wrong. Do not "simplify" this to FuelMain:
+                // that was the first attempt and the game disproved it. Note upstream's
+                // FsdData/RouteAdv passes FuelMain only and so has this same error.
+                //
+                // FuelMain reads 0 when the game is shut down (Status.json carries no Fuel block at
+                // all then), so require a real reading before capping or a closed game would report
+                // a 0 LY range.
+                var fuelForJump = fuel > 0
+                    ? Math.Min(fuel, FSDMaxFuelPerJump)
                     : FSDMaxFuelPerJump;
 
                 var fsdRange = FSDOptimalMass / totalMass
