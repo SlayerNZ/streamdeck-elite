@@ -412,34 +412,18 @@ namespace Elite.Buttons
             return (done / (double)EliteData.TotalJumpsInRoute) * 100.0;
         }
 
-        // The game doesn't write out a live "current jump range" anywhere in the journal - the
-        // closest it gives us is BaseJumpRange (Loadout's MaxJumpRange: best case, empty cargo,
-        // fuel for one jump) and UnladenMass (hull + modules only, from that same event).
+        // Uses the shared exact calculation, EliteData.GetJumpRange, so this button cannot disagree
+        // with the Neutron Plot and Nav Info buttons sitting next to it on the same deck. It models
+        // the ship's real FSD (published stats, engineering modifiers, a powered Guardian booster),
+        // caps the fuel a single jump can draw on, and shows the neutron boost when supercharged.
         //
-        // FSD jump range scales roughly inversely with total ship mass, so we approximate today's
-        // range by scaling BaseJumpRange down using how much heavier the ship is right now (current
-        // fuel + cargo on top of UnladenMass) versus that baseline unladen weight:
-        //
-        //     estimate = BaseJumpRange x (UnladenMass / currentTotalMass)
-        //
-        // This is an estimate, not the exact in-game formula (it ignores the small amount of fuel
-        // the baseline figure already assumes for one jump), but it tracks fuel burn and cargo
-        // weight closely enough for an at-a-glance Stream Deck readout.
+        // This replaced a mass-ratio approximation, estimate = BaseJumpRange x (UnladenMass /
+        // currentTotalMass), which ignored the per-jump fuel cap entirely and so over-reported badly
+        // at low fuel: on a Caspian it read 4 LY high at 5 t of fuel and over 20 LY high at 2.3 t.
+        // GetJumpRange falls back to that same ratio estimate when the drive is not recognised.
         private double GetEstimatedJumpRangeLy()
         {
-            if (EliteData.BaseJumpRange <= 0 || EliteData.UnladenMass <= 0)
-            {
-                return 0;
-            }
-
-            var currentTotalMass = EliteData.UnladenMass + GetFuelLevel() + (EliteData.StatusData?.Cargo ?? 0);
-
-            if (currentTotalMass <= 0)
-            {
-                return 0;
-            }
-
-            return EliteData.BaseJumpRange * (EliteData.UnladenMass / currentTotalMass);
+            return EliteData.GetJumpRange(boosted: true);
         }
 
         // ===================== cycling helpers =====================
@@ -611,6 +595,15 @@ namespace Elite.Buttons
                 {
                     await Connection.SetImageAsync(_noRouteFile);
                 }
+                else
+                {
+                    // No No Route image configured. Draw a placeholder rather than returning: a bare
+                    // return left the key untouched, so it either kept Stream Deck's default icon
+                    // (looking like a dead button) or, worse, froze on the LAST route's values and
+                    // went on displaying them after the route was cleared. Stale readings that look
+                    // current are worse than a blank button.
+                    await DrawNoRoutePlaceholderAsync();
+                }
                 return;
             }
 
@@ -627,21 +620,26 @@ namespace Elite.Buttons
                 baseImage = _noRouteImage; baseFile = _noRouteFile; baseIsGif = _noRouteImageIsGif;
             }
 
-            if (baseImage == null)
-            {
-                return;
-            }
-
+            // No early return when there is no image. This button synthesises its own black canvas
+            // instead, so the text always renders. Returning here left SetImageAsync uncalled and the
+            // key showing Stream Deck's default icon, which reads as a dead button. Same defect that
+            // was fixed in HeadingAltitude, LatLongInfo, PlanetInfo, Gravity and NavTarget on
+            // 2026-09-01; this button was missed in that pass. Mirrors GalaxySearch.
             var imgBase64 = baseFile;
 
             if (!baseIsGif)
             {
                 try
                 {
-                    using (var bitmap = new Bitmap(baseImage))
+                    using (var bitmap = baseImage != null ? new Bitmap(baseImage) : new Bitmap(256, 256))
                     {
                         using (var graphics = Graphics.FromImage(bitmap))
                         {
+                            if (baseImage == null)
+                            {
+                                graphics.Clear(Color.Black);
+                            }
+
                             var width = bitmap.Width;
                             var isBold = optionData.bold == "true";
                             var valuePosition = double.TryParse(optionData.verticalPosition, out double parsedValuePosition) ? parsedValuePosition : 160.0;
@@ -661,6 +659,30 @@ namespace Elite.Buttons
             }
 
             await Connection.SetImageAsync(imgBase64);
+        }
+
+        // Black canvas reading NO ROUTE, for when no route is plotted and the user has set no
+        // No Route image. Keeps the button visibly alive and unambiguously empty of data.
+        private async Task DrawNoRoutePlaceholderAsync()
+        {
+            try
+            {
+                using (var bitmap = new Bitmap(256, 256))
+                {
+                    using (var graphics = Graphics.FromImage(bitmap))
+                    {
+                        graphics.Clear(Color.Black);
+                        DrawFittedText(graphics, "NO", Color.Gray, 40.0, false, bitmap.Width);
+                        DrawFittedText(graphics, "ROUTE", Color.Gray, 120.0, false, bitmap.Width);
+                    }
+
+                    await Connection.SetImageAsync(BarRaider.SdTools.Tools.ImageToBase64(bitmap, true));
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogMessage(TracingLevel.FATAL, "RouteAdv DrawNoRoutePlaceholderAsync " + ex);
+            }
         }
 
         public RouteAdv(SDConnection connection, InitialPayload payload) : base(connection, payload)

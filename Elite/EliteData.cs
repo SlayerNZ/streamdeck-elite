@@ -67,20 +67,23 @@ namespace Elite
         // fitting the exponent at the same time; with the exponent now known to be 2.5, it holds.
         private const double ScoMkIILinearConstant = 0.01107;
 
-        // Phantom mass added to every jump-range estimate so the figure always reads slightly
-        // UNDER what the ship can really do. One tonne is worth about 0.06 LY on an 85 LY jump -
-        // negligible for ordinary travel, but it is applied before the neutron multiplier, so a
-        // 6x supercharge turns it into roughly 0.37 LY of headroom where it actually matters.
+        // THE DISPLAYED RANGE CARRIES NO SAFETY MARGIN. It is meant to answer "can I jump right
+        // now?", and the game's own readout is the authority on that, so the figure is honest and
+        // matches it. Verified in game 2026-09-28 on the real plugin at two fuel states and two
+        // reservoir levels.
         //
-        // A flat tonne was chosen over the alternatives after measuring seven fuel levels in game:
-        //   - rounding fuel up to the tonne produced a SAWTOOTH, swinging 0.06 LY as fuel crossed
-        //     each whole tonne, and combined with assuming a full reservoir the margin faded to
-        //     zero by ~47t and then went POSITIVE - gone exactly when a long trip needs it;
-        //   - a percentage of the fuel is smooth but shrinks with the fuel, so it also dies at the
-        //     bottom of the tank (3% of fuel is worth 0.009 LY at 5t remaining).
-        // A fixed tonne is a slightly LARGER fraction of a lighter ship, so the margin grows a
-        // little as the tank empties: 0.051 LY at a full tank, 0.062 LY near empty.
-        private const double SafetyMassTonnes = 1.0;
+        // Conservatism lives ONLY in the Spansh payload, as SpanshConservativeMassFraction (0.5% on
+        // base_mass, about 6.3 t on a Caspian) in NeutronPlotRoute. That is the right place for it:
+        // planning a hop you cannot make is the failure that strands you, and padding the plotter
+        // costs the user nothing they can see. Do not reintroduce a display-side margin to
+        // compensate for something the plotter should handle.
+        //
+        // History, so the rejected options are not retried: a flat 1 t phantom mass used to be added
+        // here and was removed once the model became accurate enough to match the game. Before that,
+        // rounding fuel up to the tonne produced a SAWTOOTH that swung 0.06 LY per whole tonne and
+        // went POSITIVE below ~47 t, and a percentage of fuel shrank exactly when it was needed
+        // (3% of fuel is worth 0.009 LY at 5 t remaining). If display conservatism is ever wanted
+        // again, a flat tonne was the least-bad of those three, not a percentage.
         public static double FSDOptimalMass = 0.0;
         public static double FSDMaxFuelPerJump = 0.0;
         public static double FSDLinearConstant = 0.0;
@@ -515,14 +518,36 @@ namespace Elite
             double range;
             if (FSDOptimalMass > 0 && FSDMaxFuelPerJump > 0 && UnladenMass > 0)
             {
-                // Real mass, plus a deliberate phantom tonne (see SafetyMassTonnes). The figure is
-                // used to plan long-distance travel, where over-estimating range is how you end up
-                // stranded short of a star, so it should always read slightly under the game's own
-                // number. Do not "correct" it to match the HUD - that trade was tried and rejected.
+                // Real mass, with NO safety padding: this figure should match the game's own readout.
+                // The reservoir counts toward mass as well as being available fuel (see below);
+                // confirmed in game, where a full versus empty reservoir moves the range by 0.06 LY
+                // at a full tank. Conservatism belongs in the Spansh payload only, and is already
+                // there as SpanshConservativeMassFraction.
                 var fuel = StatusData.Fuel.FuelMain + StatusData.Fuel.FuelReservoir;
-                var totalMass = UnladenMass + fuel + StatusData.Cargo + SafetyMassTonnes;
+                var totalMass = UnladenMass + fuel + StatusData.Cargo;
+
+                // The drive can only burn what is in the tank. Above the per-jump cap this changes
+                // nothing, which is why the figure stays as validated across 8 fuel levels from
+                // 128 t down to 16 t; below it the range really does collapse, and ignoring that
+                // over-reported by +4.16 LY at 5.1 t on the Caspian, and far worse lower down.
+                //
+                // **The RESERVOIR counts as available jump fuel.** Measured in game 2026-09-27 at
+                // 5.077 t main + ~0.83 t reservoir, where the game showed 83.46 LY. Working back
+                // from that figure implies 5.908 t of usable fuel, which is main PLUS reservoir
+                // (5.91), not main alone (5.08). Main alone reads 4.35 LY UNDER, so it is not a
+                // conservative choice, it is simply wrong. Do not "simplify" this to FuelMain:
+                // that was the first attempt and the game disproved it. Note upstream's
+                // FsdData/RouteAdv passes FuelMain only and so has this same error.
+                //
+                // FuelMain reads 0 when the game is shut down (Status.json carries no Fuel block at
+                // all then), so require a real reading before capping or a closed game would report
+                // a 0 LY range.
+                var fuelForJump = fuel > 0
+                    ? Math.Min(fuel, FSDMaxFuelPerJump)
+                    : FSDMaxFuelPerJump;
+
                 var fsdRange = FSDOptimalMass / totalMass
-                    * Math.Pow(FSDMaxFuelPerJump / FSDLinearConstant, 1.0 / FSDPowerConstant);
+                    * Math.Pow(fuelForJump / FSDLinearConstant, 1.0 / FSDPowerConstant);
                 // No range trim: the Guardian bonus is a flat additive term the game applies after
                 // the FSD calculation. What used to be trimmed here was the wrong SCO Mk II power
                 // constant (see ScoMkIIPowerConstant).
@@ -540,8 +565,16 @@ namespace Elite
         {
             if (loadout.Modules == null) return;
 
-            // Guardian FSD Booster — flat LY bonus, also multiplied by neutron boost
-            var guardian = loadout.Modules.FirstOrDefault(m => m.Item != null && m.Item.IndexOf("guardianfsdbooster", StringComparison.OrdinalIgnoreCase) >= 0);
+            // Guardian FSD Booster — flat LY bonus, also multiplied by neutron boost.
+            //
+            // It must be POWERED to give anything. Confirmed across 137 real Loadout events: two of
+            // them carry a size 5 booster with "On":false, and the game's MaxJumpRange excludes the
+            // 10.5 LY in exactly those two. This check used to be redundant, because MaxFuelPerJump
+            // was back-calculated from MaxJumpRange and silently absorbed the error; now that the
+            // published MaxFuelPerJump is preferred, nothing absorbs it and an unpowered booster
+            // would over-report by its full bonus. Health is deliberately not tested: a malfunctioning
+            // module's behaviour here has not been measured.
+            var guardian = loadout.Modules.FirstOrDefault(m => m.Item != null && m.On && m.Item.IndexOf("guardianfsdbooster", StringComparison.OrdinalIgnoreCase) >= 0);
             if (guardian != null)
             {
                 var gm = System.Text.RegularExpressions.Regex.Match(guardian.Item, @"size(\d)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
@@ -564,16 +597,24 @@ namespace Elite
                 return;
             }
 
-            // FSDOptimalMass from engineering modifier (Modifier.Value is non-nullable double in the new EJR)
+            // Published base stats for this exact drive, where we have them (see FsdModuleData).
+            // Engineering modifiers below override the two mutable figures; the constants never move.
+            var item = fsd.Item ?? string.Empty;
+            var haveBaseStats = FsdModuleData.TryGet(item, out var baseStats);
+
+            // FSDOptimalMass from engineering modifier (Modifier.Value is non-nullable double in the new EJR),
+            // else the drive's published base value. Before the table existed an unengineered drive left this
+            // at 0, which disabled the fuel model and made the ship unplottable.
             var optMass = fsd.Engineering?.Modifiers?.FirstOrDefault(m => m.Label == ModuleAttribute.FSDOptimalMass);
-            EliteData.FSDOptimalMass = optMass?.Value > 0 ? optMass.Value : 0.0;
+            EliteData.FSDOptimalMass = optMass?.Value > 0
+                ? optMass.Value
+                : (haveBaseStats ? baseStats.OptimalMass : 0.0);
 
             // MaxFuelPerJump from engineering modifier (present when engineered)
             var maxFuel = fsd.Engineering?.Modifiers?.FirstOrDefault(m => m.Label == ModuleAttribute.MaxFuelPerJump);
             double explicitMaxFuel = maxFuel?.Value > 0 ? maxFuel.Value : 0.0;
 
             // FSD size and rating from item name (e.g. int_hyperdrive_overcharge_size5_class5 or int_hyperdrive_size5_classa)
-            var item = fsd.Item ?? string.Empty;
             var sizeMatch  = System.Text.RegularExpressions.Regex.Match(item, @"size(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             var classNum   = System.Text.RegularExpressions.Regex.Match(item, @"class([1-5])(?![a-z])", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             var classLetter = System.Text.RegularExpressions.Regex.Match(item, @"class([a-e])(?!\d)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
@@ -589,18 +630,48 @@ namespace Elite
             // Matched on the item name, so it applies to any ship carrying the drive, not one hull.
             var isScoMkII = item.IndexOf("overchargebooster_mkii", StringComparison.OrdinalIgnoreCase) >= 0;
 
-            EliteData.FSDPowerConstant = isScoMkII
-                ? ScoMkIIPowerConstant
-                : 2.0 + (fsdSize - 2) * 0.15;
-            // The Mk II ignores the rating-derived linear constant too -- see ScoMkIILinearConstant.
-            EliteData.FSDLinearConstant = isScoMkII
-                ? ScoMkIILinearConstant
-                : fsdRating switch { 'A' => 0.012, 'B' => 0.010, 'C' => 0.008, 'D' => 0.010, 'E' => 0.011, _ => 0.012 };
+            if (haveBaseStats)
+            {
+                // Published constants for this exact drive. Note the table's Mk II row already carries
+                // OUR fitted constants rather than the published ones, so this path covers it too.
+                EliteData.FSDPowerConstant = baseStats.PowerConstant;
+                EliteData.FSDLinearConstant = baseStats.LinearConstant;
+            }
+            else if (isScoMkII)
+            {
+                // A Mk II variant we have no table row for (today only size 8 class 5 exists, but the
+                // name match has to keep working if Frontier ships the drive in another size). Both
+                // constants were fitted in game on a size 8 and held across engineering and the
+                // Guardian booster, so they are the best available estimate for any Mk II.
+                EliteData.FSDPowerConstant = ScoMkIIPowerConstant;
+                EliteData.FSDLinearConstant = ScoMkIILinearConstant;
+            }
+            else
+            {
+                // Unknown drive. The size-derived exponent is genuinely universal, and the
+                // rating-derived linear constant is correct for every STANDARD drive - but it is
+                // wrong for the SCO drives by up to 50%, so this is a last resort, not a peer of
+                // the table. See the header comment in FsdModuleData.
+                EliteData.FSDPowerConstant = 2.0 + (fsdSize - 2) * 0.15;
+                EliteData.FSDLinearConstant = fsdRating switch { 'A' => 0.012, 'B' => 0.010, 'C' => 0.008, 'D' => 0.010, 'E' => 0.011, _ => 0.012 };
+            }
 
-            // MaxFuelPerJump: use modifier if available, otherwise back-calculate from MaxJumpRange
+            // MaxFuelPerJump: engineering modifier if present, else the drive's published base value,
+            // else back-calculate from MaxJumpRange.
+            //
+            // Preferring the published value over back-calculation matters because the game's own
+            // MaxJumpRange is not always trustworthy: a Loadout written mid-outfitting reports it
+            // WITHOUT a Guardian booster that has just been fitted. Measured on a real journal, that
+            // made back-calculation return 3.53 t against a true 6.80 t (-48%), showing 42.82 LY
+            // instead of 52.53 and sending that 3.53 to Spansh as max_fuel_per_jump. It corrects
+            // itself on the next Loadout, but a plot in that window would have been badly short.
             if (explicitMaxFuel > 0)
             {
                 EliteData.FSDMaxFuelPerJump = explicitMaxFuel;
+            }
+            else if (haveBaseStats && baseStats.MaxFuelPerJump > 0)
+            {
+                EliteData.FSDMaxFuelPerJump = baseStats.MaxFuelPerJump;
             }
             else if (EliteData.FSDOptimalMass > 0 && EliteData.BaseJumpRange > 0 && EliteData.UnladenMass > 0)
             {
