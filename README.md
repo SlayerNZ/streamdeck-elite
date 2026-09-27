@@ -15,6 +15,36 @@ This release upgrades the plugin's underlying `EliteJournalReader` library (the 
 
 ---
 
+## New & Update Features (v4.2.3)
+
+Jump Range is now exact, and it matches the game. Everything here was measured in game rather than calculated and hoped for, across a full tank down to 2.3 tonnes.
+
+---
+
+### 🚀 ✏️ Updated: Jump Range is exact, and matches the game's own figure
+
+Jump Range is now modelled from your ship's real Frame Shift Drive, using the published stats for all 66 drives plus your engineering modifiers and a powered Guardian FSD Booster. Three things were wrong before:
+
+- **Supercruise Overcharge drives used the wrong fuel constants.** The old calculation derived them from the drive's rating, which is correct for standard drives but wrong for every SCO drive, by up to 50%. Displayed range mostly survived this, but the figures sent to the Spansh plotter did not, which is how a route could contain an opening hop you could not actually make.
+- **The per-jump fuel cap was ignored.** A drive can only burn so much fuel in one jump, so once your main tank drops below that the range really does collapse. The old figure did not, and over-reported by more than 20 LY at 2.3 tonnes of fuel: worst exactly when running out of fuel is the thing you are worried about.
+- **The fuel reservoir was not counted.** It contributes both to your ship's mass and to the fuel a single jump can draw on.
+
+Unengineered drives are now modelled too. Previously a stock drive had no fuel model at all and could not be used for Auto Plot, which reported `NO SHIP`.
+
+> Jump Range now agrees with the game's own readout. If you compare the two and see a small difference, check your fuel reservoir level first: a full versus empty reservoir moves the range by about 0.06 LY at a full tank.
+
+### 🧭 🔧 Fixed: Advanced Route drew nothing without a background image
+
+The Advanced Route button only rendered if you had configured a background image. With none set it showed Stream Deck's default icon and looked like a dead button. It now draws its own black background, matching the other information buttons.
+
+Worse, and also fixed: with no "No Route" image set, clearing your route left the button **frozen displaying the previous route's values**. A blank button is annoying; one still showing old numbers as though they were current is misleading. It now shows a `NO ROUTE` placeholder.
+
+### 🧭 ✏️ Updated: Advanced Route now shows the same Jump Range as the other buttons
+
+Advanced Route had its own separate estimate that ignored the per-jump fuel cap, so it could disagree with the Neutron Plot and Nav Info buttons on the same deck. All three now use one shared calculation.
+
+---
+
 ## New & Update Features (v4.2.1)
 
 A bug-fix release. One of these had been silently breaking shipped features since v4.2.0, so it is worth updating even if nothing looked wrong.
