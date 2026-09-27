@@ -172,6 +172,16 @@ Three display styles to suit your layout:
 
 Each row has its own colour, and a configurable **Boost Color** highlights the Jump Range when you've supercharged.
 
+> **Why Jump Range reads slightly lower than the game.** This is deliberate, and it is not an error.
+>
+> The figure is calculated from your ship's actual Frame Shift Drive (its published stats, your engineering modifiers, and a powered Guardian FSD Booster) against your live fuel and cargo mass. It has been validated in game across a full tank down to 2.3 tonnes and agrees with the game's own readout to a few hundredths of a light year.
+>
+> On top of that it adds **one tonne of phantom mass**, so the number always sits a little under what the game reports. The reason is that this readout is for planning long-distance travel, where over-estimating your range is how you end up stranded short of a fuel star. Reading slightly under costs you nothing you would ever notice; reading slightly over can cost you a jump you cannot make.
+>
+> How much it costs depends on how heavy your ship is: roughly **0.05 LY** on a heavy explorer such as a Caspian or Anaconda, and up to about **0.3 LY** on a light long-range ship such as a Mandalay. It matters most where the stakes are highest, because the margin is applied before the neutron multiplier, so a 6x supercharge turns 0.05 LY into roughly 0.37 LY of headroom on a 490 LY hop.
+>
+> One thing to watch when comparing readings: the **fuel reservoir** counts both toward your mass and toward the fuel a jump can draw on, and a full versus empty reservoir moves the range by about 0.06 LY at a full tank. That is close enough to the safety margin to be mistaken for it, so check your reservoir level before concluding the two numbers disagree.
+
 #### Plotting a route
 
 **1. The normal case.** Target the system you want in the Galaxy Map, then trigger **Auto Plot**. That is all that is needed whenever Spansh knows both ends of the route, which covers most of travelled space.
@@ -249,6 +259,8 @@ It's a two-row, labelled display purpose-built for everyday A-to-B travel and re
 | Est. Jumps in Tank | how many jumps your current fuel will last |
 
 Each row has its own colour, plus a **Boost Color** for the Jump Range.
+
+> **Note:** Jump Range uses the same calculation as the Neutron Plot Route button, including the deliberate one tonne safety margin that makes it read slightly under the game's own figure. See "Why Jump Range reads slightly lower than the game" in the Neutron Plot Route section above.
 
 ---
 

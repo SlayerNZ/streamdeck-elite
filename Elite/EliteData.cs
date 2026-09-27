@@ -67,20 +67,23 @@ namespace Elite
         // fitting the exponent at the same time; with the exponent now known to be 2.5, it holds.
         private const double ScoMkIILinearConstant = 0.01107;
 
-        // Phantom mass added to every jump-range estimate so the figure always reads slightly
-        // UNDER what the ship can really do. One tonne is worth about 0.06 LY on an 85 LY jump -
-        // negligible for ordinary travel, but it is applied before the neutron multiplier, so a
-        // 6x supercharge turns it into roughly 0.37 LY of headroom where it actually matters.
+        // THE DISPLAYED RANGE CARRIES NO SAFETY MARGIN. It is meant to answer "can I jump right
+        // now?", and the game's own readout is the authority on that, so the figure is honest and
+        // matches it. Verified in game 2026-09-28 on the real plugin at two fuel states and two
+        // reservoir levels.
         //
-        // A flat tonne was chosen over the alternatives after measuring seven fuel levels in game:
-        //   - rounding fuel up to the tonne produced a SAWTOOTH, swinging 0.06 LY as fuel crossed
-        //     each whole tonne, and combined with assuming a full reservoir the margin faded to
-        //     zero by ~47t and then went POSITIVE - gone exactly when a long trip needs it;
-        //   - a percentage of the fuel is smooth but shrinks with the fuel, so it also dies at the
-        //     bottom of the tank (3% of fuel is worth 0.009 LY at 5t remaining).
-        // A fixed tonne is a slightly LARGER fraction of a lighter ship, so the margin grows a
-        // little as the tank empties: 0.051 LY at a full tank, 0.062 LY near empty.
-        private const double SafetyMassTonnes = 1.0;
+        // Conservatism lives ONLY in the Spansh payload, as SpanshConservativeMassFraction (0.5% on
+        // base_mass, about 6.3 t on a Caspian) in NeutronPlotRoute. That is the right place for it:
+        // planning a hop you cannot make is the failure that strands you, and padding the plotter
+        // costs the user nothing they can see. Do not reintroduce a display-side margin to
+        // compensate for something the plotter should handle.
+        //
+        // History, so the rejected options are not retried: a flat 1 t phantom mass used to be added
+        // here and was removed once the model became accurate enough to match the game. Before that,
+        // rounding fuel up to the tonne produced a SAWTOOTH that swung 0.06 LY per whole tonne and
+        // went POSITIVE below ~47 t, and a percentage of fuel shrank exactly when it was needed
+        // (3% of fuel is worth 0.009 LY at 5 t remaining). If display conservatism is ever wanted
+        // again, a flat tonne was the least-bad of those three, not a percentage.
         public static double FSDOptimalMass = 0.0;
         public static double FSDMaxFuelPerJump = 0.0;
         public static double FSDLinearConstant = 0.0;
@@ -515,12 +518,13 @@ namespace Elite
             double range;
             if (FSDOptimalMass > 0 && FSDMaxFuelPerJump > 0 && UnladenMass > 0)
             {
-                // Real mass, plus a deliberate phantom tonne (see SafetyMassTonnes). The figure is
-                // used to plan long-distance travel, where over-estimating range is how you end up
-                // stranded short of a star, so it should always read slightly under the game's own
-                // number. Do not "correct" it to match the HUD - that trade was tried and rejected.
+                // Real mass, with NO safety padding: this figure should match the game's own readout.
+                // The reservoir counts toward mass as well as being available fuel (see below);
+                // confirmed in game, where a full versus empty reservoir moves the range by 0.06 LY
+                // at a full tank. Conservatism belongs in the Spansh payload only, and is already
+                // there as SpanshConservativeMassFraction.
                 var fuel = StatusData.Fuel.FuelMain + StatusData.Fuel.FuelReservoir;
-                var totalMass = UnladenMass + fuel + StatusData.Cargo + SafetyMassTonnes;
+                var totalMass = UnladenMass + fuel + StatusData.Cargo;
 
                 // The drive can only burn what is in the tank. Above the per-jump cap this changes
                 // nothing, which is why the figure stays as validated across 8 fuel levels from
